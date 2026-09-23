@@ -1,0 +1,462 @@
+/* Minion Commander — UI shell styles. */
+
+:root {
+  --bar-height: 34px;
+  --hotbar-height: 72px;
+  --bg: #12141a;
+  --panel: #1c2029;
+  --panel-border: #2e3444;
+  --text: #e6e9f0;
+  --text-dim: #9aa2b5;
+  --accent: #5db3ff;
+  --accent-hot: #ffd166;
+  --danger: #ff6b6b;
+  --success: #6bdf8a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+}
+
+#game-canvas {
+  display: block;
+  order: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  background: #000;
+  cursor: default;
+}
+
+/* ---- Status bar ---- */
+#status-bar {
+  order: 0;
+  flex: 0 0 auto;
+  height: var(--bar-height);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--panel-border);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+#status-bar .stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+#status-bar .stat .swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+#status-bar .stat .value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+#status-bar .stat.minions .value {
+  color: var(--accent);
+}
+
+#status-bar .spacer {
+  flex: 1 1 auto;
+}
+
+#status-bar button {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel-border);
+  border: 1px solid #3a4152;
+  border-radius: 5px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+#status-bar button:hover {
+  background: #3a4152;
+}
+
+#status-bar button.paused {
+  background: var(--accent-hot);
+  color: #1a1200;
+}
+
+/* ---- Hotbar ---- */
+#hotbar {
+  order: 2;
+  flex: 0 0 auto;
+  height: var(--hotbar-height);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  background: var(--panel);
+  border-top: 1px solid var(--panel-border);
+  overflow-x: auto;
+}
+
+.hotbar-item {
+  position: relative;
+  flex: 0 0 auto;
+  width: 56px;
+  height: 56px;
+  border-radius: 6px;
+  border: 2px solid var(--panel-border);
+  background: #171a22;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.hotbar-item canvas.icon {
+  width: 30px;
+  height: 30px;
+}
+
+.hotbar-item .label {
+  font-size: 9px;
+  color: var(--text-dim);
+  line-height: 1;
+  max-width: 54px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hotbar-item:hover {
+  border-color: var(--accent);
+}
+
+.hotbar-item.selected {
+  border-color: var(--accent-hot);
+  background: #241f12;
+}
+
+/* Floating cost tooltip (shown above a hotbar slot on hover). */
+.hotbar-tooltip {
+  position: fixed;
+  z-index: 200;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--text);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.08s ease;
+}
+
+.hotbar-tooltip.visible {
+  opacity: 1;
+}
+
+/* ---- Menus / overlays ---- */
+#overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 10, 15, 0.82);
+  z-index: 50;
+}
+
+#overlay.hidden {
+  display: none;
+}
+
+.menu {
+  min-width: 320px;
+  max-width: 92vw;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 24px 28px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.menu h1 {
+  margin: 0 0 4px;
+  font-size: 26px;
+  letter-spacing: 0.5px;
+}
+
+.menu .subtitle {
+  margin: 0 0 20px;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.menu button {
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+  padding: 11px 14px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: #262c3a;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.menu button:hover {
+  background: #303848;
+  border-color: var(--accent);
+}
+
+.menu button.primary {
+  background: var(--accent);
+  color: #04121f;
+  border-color: transparent;
+  font-weight: 700;
+}
+
+.menu button.primary:hover {
+  background: #7ec4ff;
+}
+
+.menu button.danger {
+  color: var(--danger);
+}
+
+.menu .note {
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.menu .key-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+.menu .key-row kbd {
+  background: #0e1117;
+  border: 1px solid var(--panel-border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-family: inherit;
+  color: var(--accent-hot);
+}
+
+.menu h2 {
+  font-size: 16px;
+  margin: 18px 0 6px;
+  color: var(--accent);
+}
+
+/* ---- Toasts ---- */
+#toasts {
+  position: absolute;
+  top: calc(var(--bar-height) + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 60;
+  pointer-events: none;
+}
+
+.toast {
+  background: #000c;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: var(--text);
+  animation: toast-in 0.18s ease-out;
+}
+
+.toast.info {
+  border-color: var(--accent);
+}
+.toast.warn {
+  border-color: var(--accent-hot);
+}
+.toast.error {
+  border-color: var(--danger);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---- Building inspector ---- */
+#inspector {
+  position: fixed;
+  top: calc(var(--bar-height) + 12px);
+  right: 12px;
+  width: 300px;
+  max-height: calc(100vh - var(--bar-height) - var(--hotbar-height) - 40px);
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  z-index: 40;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+#inspector.hidden {
+  display: none;
+}
+
+#inspector h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  padding-right: 24px;
+}
+
+#inspector .desc {
+  color: var(--text-dim);
+  font-size: 12px;
+  margin: 0 0 12px;
+}
+
+#inspector .close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+#inspector .close:hover {
+  color: var(--text);
+}
+
+#inspector .current {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  margin-bottom: 12px;
+}
+
+#inspector .current .swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  flex: 0 0 auto;
+}
+
+#inspector .current .empty {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1px dashed var(--text-dim);
+  flex: 0 0 auto;
+}
+
+#inspector .current .meta {
+  font-size: 13px;
+}
+
+#inspector .current .meta .name {
+  font-weight: 600;
+}
+
+#inspector .current .meta .qty {
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+#inspector h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  margin: 0 0 6px;
+}
+
+#inspector .item-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+#inspector .item-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  background: #262c3a;
+  border: 1px solid var(--panel-border);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+#inspector .item-btn:hover {
+  border-color: var(--accent);
+}
+
+#inspector .item-btn.active {
+  border-color: var(--accent-hot);
+  background: #241f12;
+}
+
+#inspector .item-btn .swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}

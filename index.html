@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Minion Commander</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- The game world is drawn onto this canvas. -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Top status bar (resources, minion counts, day/time, pause toggle). -->
+    <header id="status-bar" aria-label="Status bar"></header>
+
+    <!-- Bottom hotbar (building selection). -->
+    <footer id="hotbar" aria-label="Building hotbar"></footer>
+
+    <!-- Overlays (main menu / pause menu). -->
+    <div id="overlay"></div>
+
+    <!-- Transient toast notifications. -->
+    <div id="toasts" aria-live="polite"></div>
+
+    <!-- Building inspector (storage management, etc.). -->
+    <div id="inspector" class="hidden" aria-label="Building inspector"></div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

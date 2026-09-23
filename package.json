@@ -1,0 +1,11 @@
+{
+  "name": "minion-commander",
+  "version": "0.1.0",
+  "description": "Minion Commander - a 2D town building game for the browser.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "serve": "npx --yes serve .",
+    "check": "node scripts/check-syntax.mjs"
+  }
+}
