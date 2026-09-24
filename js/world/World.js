@@ -58,7 +58,7 @@ export class World {
       return t.structure.isDoorTile(x, y);
     }
 
-    if (t.tree || t.vein) return false;
+    if ((t.tree && t.tree.mature) || t.vein) return false;
     if (t.biome === 'river') return false; // only bridges (structures) are walkable here
     return true;
   }
