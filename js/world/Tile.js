@@ -20,7 +20,7 @@ export class Tile {
     /** { mature: boolean, plantedAtHours: number } or null. */
     this.tree = null;
 
-    /** 'iron' | 'copper' | null */
+    /** 'stone' | 'iron' | 'copper' | null */
     this.vein = null;
 
     /** { type: string, qty: number } or null (one material type per tile). */
