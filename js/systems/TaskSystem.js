@@ -320,11 +320,11 @@ export class TaskSystem {
       const recipe = RECIPES[b.designatedRecipe];
       return recipe && this._craftReady(b, recipe) ? recipe : null;
     }
-    const ids = STATION_RECIPES[b.def.id] || [];
-    for (const id of ids) {
-      const recipe = RECIPES[id];
-      if (recipe && this._craftReady(b, recipe)) return recipe;
-    }
+    // const ids = STATION_RECIPES[b.def.id] || [];
+    // for (const id of ids) {
+    //   const recipe = RECIPES[id];
+    //   if (recipe && this._craftReady(b, recipe)) return recipe;
+    // }
     return null;
   }
 
