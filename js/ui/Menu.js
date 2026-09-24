@@ -37,17 +37,19 @@ export class Menu {
     bind('controls', onControls);
   }
 
-  showPauseMenu({ onResume, onSaveAndExit }) {
+  showPauseMenu({ onResume, onSaveAndExit, onControls }) {
     this.el.innerHTML = `
       <div class="menu">
         <h1>Paused</h1>
         <p class="subtitle">Game saved. Plan your build in peace.</p>
         <button data-action="resume" class="primary">Resume</button>
+        <button data-action="controls">Controls</button>
         <button data-action="exit">Save &amp; Exit to Menu</button>
       </div>
     `;
     this.el.classList.remove('hidden');
     this.el.querySelector('[data-action="resume"]').addEventListener('click', onResume);
+    this.el.querySelector('[data-action="controls"]').addEventListener('click', onControls);
     this.el.querySelector('[data-action="exit"]').addEventListener('click', onSaveAndExit);
   }
 

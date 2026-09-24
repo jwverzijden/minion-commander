@@ -396,6 +396,7 @@ export class Game {
     this.menuVisible = true;
     this.menu.showPauseMenu({
       onResume: () => this.resumeGame(),
+      onControls: () => this.menu.showControls(() => this._onEscape()),
       onSaveAndExit: () => this.exitToMenu(),
     });
   }
