@@ -11,7 +11,7 @@ const COST = {
   path: 1,
   bridge: 1,
   offPath: 8,
-  door: 1,
+  door: 1.1,
 };
 
 function moveCost(world, x, y) {
