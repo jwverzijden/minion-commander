@@ -251,5 +251,16 @@ assert(
   'storage source targets the door tile (walkable), not the top-left corner',
 );
 
+// --- Delivery point picks the nearest reachable adjacent tile ---
+const dpWorld = new World(20);
+const dpBm = new BuildingManager(dpWorld);
+const dpTs = new TaskSystem(dpWorld, dpBm, bus);
+const dpSite = new Building(buildingDef('path'), 12, 12, 0);
+dpSite.state = 'construction';
+dpWorld.tile(12, 12).structure = dpSite;
+const dpMinion = new Minion(12, 11);
+const dp = dpTs._deliveryPoint(dpSite, dpMinion);
+assert(dp.x === 12 && dp.y === 11, 'delivery point is the nearest reachable adjacent tile');
+
 console.log(failures === 0 ? '\nAll smoke checks passed.' : `\n${failures} check(s) FAILED.`);
 process.exit(failures === 0 ? 0 : 1);

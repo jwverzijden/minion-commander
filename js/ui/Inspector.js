@@ -1,7 +1,10 @@
 /**
- * Inspector.js — Floating panel shown when the player clicks a finished
- * building. Storage buildings let the player choose the stored item type;
- * craft buildings (factory/smeltery) let the player choose a recipe.
+ * Inspector.js — Floating panel shown when the player clicks a structure.
+ *
+ * - Storage buildings: choose the stored item type (also while under construction).
+ * - Craft buildings (factory/smeltery): choose a recipe and inspect input/output
+ *   inventories.
+ * - Construction sites: live progress bar and per-material delivered/needed counts.
  */
 
 import { RESOURCE_TYPES, RESOURCE_IDS, RECIPES, STATION_RECIPES } from '../data/resources.js';
@@ -10,7 +13,9 @@ export class Inspector {
   constructor(el) {
     this.el = el;
     this.building = null;
-    this.countEl = null;
+    this._refs = {};
+    this._state = null;
+    this._storageType = null;
   }
 
   get visible() {
@@ -19,6 +24,8 @@ export class Inspector {
 
   show(building) {
     this.building = building;
+    this._state = building.state;
+    this._storageType = building.inventory ? building.inventory.type : null;
     this._render();
     this.el.classList.remove('hidden');
   }
@@ -27,18 +34,56 @@ export class Inspector {
     this.el.classList.add('hidden');
     this.el.innerHTML = '';
     this.building = null;
-    this.countEl = null;
+    this._refs = {};
+    this._state = null;
+    this._storageType = null;
   }
 
-  /** Update dynamic text (count) without rebuilding the whole panel. */
+  /** Live-update dynamic values without rebuilding the whole panel. */
   refresh() {
-    if (!this.building || this.building.def.kind !== 'storage' || !this.countEl) return;
-    this.countEl.textContent = `${this.building.inventory.total} / ${this.building.inventory.capacity}`;
+    const b = this.building;
+    if (!b) return;
+
+    // Re-render on structural changes (state transition, storage type change).
+    if (b.state !== this._state) {
+      this._state = b.state;
+      this._storageType = b.inventory ? b.inventory.type : null;
+      this._render();
+      return;
+    }
+    if (b.inventory && b.inventory.type !== this._storageType) {
+      this._storageType = b.inventory.type;
+      this._render();
+      return;
+    }
+
+    if (this._refs.count) {
+      this._refs.count.textContent = `${b.inventory.total} / ${b.inventory.capacity}`;
+    }
+    if (this._refs.fill) {
+      const pct = Math.round(b.progress * 100);
+      this._refs.fill.style.width = `${pct}%`;
+      if (this._refs.pct) this._refs.pct.textContent = `${pct}%`;
+    }
+    if (this._refs.matCounts) {
+      for (const type in this._refs.matCounts) {
+        this._refs.matCounts[type].textContent = String(b.delivered[type] || 0);
+      }
+    }
+    if (this._refs.inputLabel && b.input) {
+      this._refs.inputLabel.textContent = `Input (${b.input.total}/${b.input.capacity})`;
+    }
+    if (this._refs.outputLabel && b.output) {
+      this._refs.outputLabel.textContent = `Output (${b.output.total}/${b.output.capacity})`;
+    }
+    this._renderInvList(this._refs.inputList, b.input);
+    this._renderInvList(this._refs.outputList, b.output);
   }
 
   _render() {
     const b = this.building;
     this.el.innerHTML = '';
+    this._refs = {};
 
     const close = document.createElement('button');
     close.className = 'close';
@@ -51,31 +96,95 @@ export class Inspector {
     h2.textContent = b.def.name;
     this.el.appendChild(h2);
 
+    const desc = document.createElement('p');
+    desc.className = 'desc';
+    desc.textContent = b.def.description;
+    this.el.appendChild(desc);
+
+    this._renderStatus(b);
+
     if (b.def.kind === 'storage') {
       this._renderStorage(b);
     } else if (b.def.behavior === 'craft') {
       this._renderCraft(b);
-    } else {
-      const desc = document.createElement('p');
-      desc.className = 'desc';
-      desc.textContent = b.def.description;
-      this.el.appendChild(desc);
-      const state = document.createElement('p');
-      state.className = 'desc';
-      state.textContent = b.state === 'built' ? 'Finished' : `Under construction (${Math.round(b.progress * 100)}%)`;
-      this.el.appendChild(state);
+    }
+  }
+
+  _renderStatus(b) {
+    if (b.state === 'built') {
+      const st = document.createElement('p');
+      st.className = 'desc';
+      st.textContent = 'Finished';
+      this.el.appendChild(st);
+      return;
+    }
+
+    // Construction progress bar.
+    const pct = Math.round(b.progress * 100);
+    const row = document.createElement('div');
+    row.className = 'progress-row';
+    const label = document.createElement('span');
+    label.className = 'progress-label';
+    label.textContent = 'Construction';
+    row.appendChild(label);
+    const pctEl = document.createElement('span');
+    pctEl.className = 'progress-pct';
+    pctEl.textContent = `${pct}%`;
+    row.appendChild(pctEl);
+    this.el.appendChild(row);
+    this._refs.pct = pctEl;
+
+    const track = document.createElement('div');
+    track.className = 'progress-track';
+    const fill = document.createElement('div');
+    fill.className = 'progress-fill';
+    fill.style.width = `${pct}%`;
+    track.appendChild(fill);
+    this.el.appendChild(track);
+    this._refs.fill = fill;
+
+    // Per-material delivered / needed.
+    if (b.totalCostUnits > 0) {
+      const h3 = document.createElement('h3');
+      h3.textContent = 'Materials';
+      this.el.appendChild(h3);
+
+      const list = document.createElement('div');
+      list.className = 'materials';
+      this._refs.matCounts = {};
+      for (const type in b.def.cost) {
+        const need = b.def.cost[type];
+        const have = b.delivered[type] || 0;
+        const res = RESOURCE_TYPES[type];
+
+        const r = document.createElement('div');
+        r.className = 'mat-row';
+        const sw = document.createElement('span');
+        sw.className = 'swatch';
+        if (res) sw.style.background = res.color;
+        r.appendChild(sw);
+        const name = document.createElement('span');
+        name.className = 'mat-name';
+        name.textContent = res ? res.name : type;
+        r.appendChild(name);
+        const cnt = document.createElement('span');
+        cnt.className = 'mat-count';
+        const haveEl = document.createElement('span');
+        haveEl.textContent = String(have);
+        cnt.appendChild(haveEl);
+        cnt.appendChild(document.createTextNode(` / ${need}`));
+        r.appendChild(cnt);
+        this._refs.matCounts[type] = haveEl;
+        list.appendChild(r);
+      }
+      this.el.appendChild(list);
     }
   }
 
   _renderStorage(b) {
     const inv = b.inventory;
 
-    const desc = document.createElement('p');
-    desc.className = 'desc';
-    desc.textContent = b.def.description;
-    this.el.appendChild(desc);
-
-    // Current contents.
+    // Current contents (or preselection).
     const current = document.createElement('div');
     current.className = 'current';
     const storedType = inv.type;
@@ -95,7 +204,7 @@ export class Inspector {
       const qty = document.createElement('span');
       qty.className = 'qty';
       qty.textContent = `${inv.total} / ${inv.capacity}`;
-      this.countEl = qty;
+      this._refs.count = qty;
       meta.appendChild(qty);
       current.appendChild(meta);
     } else {
@@ -108,7 +217,6 @@ export class Inspector {
         ? `Empty — will store ${RESOURCE_TYPES[inv.designatedType]?.name || inv.designatedType}`
         : 'Empty — no item selected';
       current.appendChild(meta);
-      this.countEl = null;
     }
     this.el.appendChild(current);
 
@@ -128,6 +236,7 @@ export class Inspector {
     grid.appendChild(
       this._itemButton('Auto', null, inv.designatedType === null, () => {
         this.building.inventory.setDesignation(null);
+        this._storageType = this.building.inventory.type;
         this._render();
       }),
     );
@@ -136,6 +245,7 @@ export class Inspector {
       grid.appendChild(
         this._itemButton(res.name, res.color, inv.designatedType === id, () => {
           this.building.inventory.setDesignation(id);
+          this._storageType = this.building.inventory.type;
           this._render();
         }),
       );
@@ -144,11 +254,6 @@ export class Inspector {
   }
 
   _renderCraft(b) {
-    const desc = document.createElement('p');
-    desc.className = 'desc';
-    desc.textContent = b.def.description;
-    this.el.appendChild(desc);
-
     const h3 = document.createElement('h3');
     h3.textContent = 'Craft recipe';
     this.el.appendChild(h3);
@@ -179,6 +284,69 @@ export class Inspector {
       );
     }
     this.el.appendChild(grid);
+
+    // Input / output inventories.
+    const invH3 = document.createElement('h3');
+    invH3.textContent = 'Inventories';
+    this.el.appendChild(invH3);
+
+    const inputLabel = document.createElement('div');
+    inputLabel.className = 'inv-label';
+    inputLabel.textContent = `Input (${b.input.total}/${b.input.capacity})`;
+    this.el.appendChild(inputLabel);
+    this._refs.inputLabel = inputLabel;
+    const inputList = document.createElement('div');
+    inputList.className = 'inv-list';
+    this.el.appendChild(inputList);
+    this._refs.inputList = inputList;
+
+    const outputLabel = document.createElement('div');
+    outputLabel.className = 'inv-label';
+    outputLabel.textContent = `Output (${b.output.total}/${b.output.capacity})`;
+    this.el.appendChild(outputLabel);
+    this._refs.outputLabel = outputLabel;
+    const outputList = document.createElement('div');
+    outputList.className = 'inv-list';
+    this.el.appendChild(outputList);
+    this._refs.outputList = outputList;
+
+    this._renderInvList(inputList, b.input);
+    this._renderInvList(outputList, b.output);
+  }
+
+  _renderInvList(container, inv) {
+    if (!container || !inv) return;
+    const sig = JSON.stringify(inv.items);
+    if (container._sig === sig) return;
+    container._sig = sig;
+    container.innerHTML = '';
+
+    const types = Object.keys(inv.items);
+    if (types.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'inv-empty';
+      empty.textContent = 'Empty';
+      container.appendChild(empty);
+      return;
+    }
+    for (const type of types) {
+      const res = RESOURCE_TYPES[type];
+      const row = document.createElement('div');
+      row.className = 'inv-row';
+      const sw = document.createElement('span');
+      sw.className = 'swatch';
+      if (res) sw.style.background = res.color;
+      row.appendChild(sw);
+      const name = document.createElement('span');
+      name.className = 'inv-name';
+      name.textContent = res ? res.name : type;
+      row.appendChild(name);
+      const qty = document.createElement('span');
+      qty.className = 'inv-qty';
+      qty.textContent = `\u00d7 ${inv.items[type]}`;
+      row.appendChild(qty);
+      container.appendChild(row);
+    }
   }
 
   _itemButton(label, color, active, onClick) {

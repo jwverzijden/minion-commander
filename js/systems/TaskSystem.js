@@ -528,7 +528,7 @@ export class TaskSystem {
       }
       return;
     }
-    const dest = this._deliveryPoint(site);
+    const dest = this._deliveryPoint(site, m);
     if (!this._stepMove(m, dest.x, dest.y, null, dt)) return;
     if (site.deliver(t.itemType)) {
       m.carried = null;
@@ -545,7 +545,7 @@ export class TaskSystem {
     if (!site || site.state !== 'construction') return this._done(m);
 
     if (t.step === 0) {
-      const dest = this._deliveryPoint(site);
+      const dest = this._deliveryPoint(site, m);
       if (this._stepMove(m, dest.x, dest.y, null, dt)) t.step = 1;
       return;
     }
@@ -694,7 +694,7 @@ export class TaskSystem {
       }
       t.type = 'deliver';
       t.itemType = itemType;
-      t.dest = this._deliveryPoint(best);
+      t.dest = this._deliveryPoint(best, m);
       t.destKind = 'site';
       t.siteId = best.id;
       t.step = 0;
@@ -705,7 +705,7 @@ export class TaskSystem {
     if (storage) {
       t.type = 'deliver';
       t.itemType = itemType;
-      t.dest = this._deliveryPoint(storage);
+      t.dest = this._deliveryPoint(storage, m);
       t.destKind = 'storage';
       t.storageId = storage.id;
       t.step = 0;
@@ -725,18 +725,29 @@ export class TaskSystem {
   }
 
   /** A walkable tile to stand on while interacting with a building. */
-  _deliveryPoint(building) {
+  _deliveryPoint(building, m) {
     const door = building.doorTile();
     if (this.world.isWalkable(door.x, door.y)) return { x: door.x, y: door.y };
-    for (const n of this.world.neighbors4(door.x, door.y)) {
-      if (this.world.isWalkable(n.x, n.y)) return { x: n.x, y: n.y };
-    }
+
+    // Construction site: deliver from the nearest walkable adjacent tile so a
+    // minion doesn't walk around to an arbitrary far side of the site.
+    let best = null;
+    let bestD = Infinity;
+    const seen = new Set();
     for (const ft of building.footprintTiles()) {
       for (const n of this.world.neighbors4(ft.x, ft.y)) {
-        if (this.world.isWalkable(n.x, n.y)) return { x: n.x, y: n.y };
+        const k = `${n.x},${n.y}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        if (!this.world.isWalkable(n.x, n.y)) continue;
+        const d = cheb(n.x, n.y, m.tileX(), m.tileY());
+        if (d < bestD) {
+          bestD = d;
+          best = { x: n.x, y: n.y };
+        }
       }
     }
-    return { x: door.x, y: door.y };
+    return best || { x: door.x, y: door.y };
   }
 
   _takeFromSource(m, type, source) {

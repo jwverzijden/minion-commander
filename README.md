@@ -116,8 +116,9 @@ scripts/
 - Camera: WASD pan, Q/E 90° rotation, clamped to the world (no zoom).
 - Building placement with ghost + `R` rotation, path dragging, and demolition
   with 50% refund.
-- Building inspector: choose the stored item type for storages and the crafting
-  recipe for factories/smelteries (click a finished building).
+- Building inspector: track construction progress and material delivery,
+  preselect a storage item type or crafting recipe, and view a craft building's
+  input/output inventories (click any structure, including construction sites).
 - Working buildings: **path, fast path, bridge, collecting station, woodcutting
   station, foresting station, recharge station, storage (S/M/L), factory,
   smeltery, drilling station, transport station, minion duplication station**.

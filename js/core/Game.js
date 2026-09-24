@@ -353,9 +353,11 @@ export class Game {
       return;
     }
 
-    // No building selected: inspect the finished structure under the cursor.
+    // No building selected: inspect the structure under the cursor
+    // (construction sites included, so the player can track progress and
+    // preselect a storage type or crafting recipe).
     const b = this.buildings.getAt(tile.x, tile.y);
-    if (b && b.state === 'built') {
+    if (b) {
       this.inspector.show(b);
     } else {
       this.inspector.hide();

@@ -30,11 +30,16 @@ function moveCost(world, x, y) {
   }
 }
 
+/** Admissible heuristic: Manhattan distance at the cheapest per-step cost. */
 function heuristic(x1, y1, x2, y2) {
-  return (Math.abs(x1 - x2) + Math.abs(y1 - y2)) * 0.7;
+  return (Math.abs(x1 - x2) + Math.abs(y1 - y2)) * COST.fastPath;
 }
 
-/** A tiny binary min-heap keyed on `f`. */
+/**
+ * Binary min-heap keyed on `f`, with a tie-break that prefers the node closer
+ * to the goal (higher `g`, so lower remaining distance) — this makes equal-cost
+ * routes resolve toward a direct, natural-looking line rather than zig-zagging.
+ */
 class MinHeap {
   constructor() {
     this.a = [];
@@ -42,13 +47,17 @@ class MinHeap {
   get size() {
     return this.a.length;
   }
+  _less(a, b) {
+    if (a.f !== b.f) return a.f < b.f;
+    return a.g > b.g;
+  }
   push(node) {
     const a = this.a;
     a.push(node);
     let i = a.length - 1;
     while (i > 0) {
       const p = (i - 1) >> 1;
-      if (a[p].f <= a[i].f) break;
+      if (!this._less(a[i], a[p])) break;
       [a[p], a[i]] = [a[i], a[p]];
       i = p;
     }
@@ -64,8 +73,8 @@ class MinHeap {
         const l = i * 2 + 1;
         const r = l + 1;
         let m = i;
-        if (l < a.length && a[l].f < a[m].f) m = l;
-        if (r < a.length && a[r].f < a[m].f) m = r;
+        if (l < a.length && this._less(a[l], a[m])) m = l;
+        if (r < a.length && this._less(a[r], a[m])) m = r;
         if (m === i) break;
         [a[m], a[i]] = [a[i], a[m]];
         i = m;
@@ -103,11 +112,13 @@ export function findPath(world, sx, sy, gx, gy, opts = {}) {
 
   const startKey = key(sx, sy);
   gScore.set(startKey, 0);
-  open.push({ k: startKey, x: sx, y: sy, f: heuristic(sx, sy, gx, gy) });
+  open.push({ k: startKey, x: sx, y: sy, g: 0, f: heuristic(sx, sy, gx, gy) });
 
   let visited = 0;
   while (open.size > 0) {
     const cur = open.pop();
+    // Skip stale heap entries (a better path to this node was already found).
+    if (cur.g > (gScore.get(cur.k) ?? Infinity)) continue;
     if (cur.k === target) {
       // Walk backwards and reverse.
       const path = [{ x: cur.x, y: cur.y }];
@@ -122,16 +133,15 @@ export function findPath(world, sx, sy, gx, gy, opts = {}) {
     }
     if (visited++ > maxNodes) return null;
 
-    const curG = gScore.get(cur.k);
     const nbrs = world.neighbors4(cur.x, cur.y);
     for (const n of nbrs) {
       if (!world.isWalkable(n.x, n.y, goal)) continue;
       const nk = key(n.x, n.y);
-      const tentative = curG + moveCost(world, n.x, n.y);
+      const tentative = cur.g + moveCost(world, n.x, n.y);
       if (tentative < (gScore.get(nk) ?? Infinity)) {
         gScore.set(nk, tentative);
         cameFrom.set(nk, { x: cur.x, y: cur.y });
-        open.push({ k: nk, x: n.x, y: n.y, f: tentative + heuristic(n.x, n.y, gx, gy) });
+        open.push({ k: nk, x: n.x, y: n.y, g: tentative, f: tentative + heuristic(n.x, n.y, gx, gy) });
       }
     }
   }

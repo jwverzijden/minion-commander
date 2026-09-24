@@ -460,3 +460,103 @@ body {
   height: 10px;
   border-radius: 2px;
 }
+
+/* ---- Inspector: construction progress ---- */
+#inspector .progress-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 4px 0 2px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+#inspector .progress-pct {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+#inspector .progress-track {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+#inspector .progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width 0.1s linear;
+}
+
+/* ---- Inspector: materials ---- */
+#inspector .materials {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+#inspector .mat-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+#inspector .mat-row .swatch,
+#inspector .inv-row .swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex: 0 0 auto;
+}
+
+#inspector .mat-row .mat-name {
+  flex: 1 1 auto;
+}
+
+#inspector .mat-row .mat-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+}
+
+/* ---- Inspector: work inventories ---- */
+#inspector .inv-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+#inspector .inv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+#inspector .inv-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+#inspector .inv-row .inv-name {
+  flex: 1 1 auto;
+}
+
+#inspector .inv-row .inv-qty {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+}
+
+#inspector .inv-empty {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-style: italic;
+}
