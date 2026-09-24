@@ -484,8 +484,8 @@ export class Game {
   }
 
   _resize() {
-    const w = this.canvas.clientWidth;
-    const h = this.canvas.clientHeight;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
     if (w && h) this.renderer.resize(w, h);
   }
 }
