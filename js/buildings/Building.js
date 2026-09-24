@@ -39,10 +39,10 @@ export class Building {
 
     // ---- Inventories ----
     if (def.kind === 'storage') {
-      this.inventory = new Inventory(def.capacity, { singleType: true });
+      this.inventory = new Inventory(def.capacity, { singleType: true, inventoryType: 'storage' });
     } else if (def.behavior === 'craft') {
-      this.input = new Inventory(CONFIG.inventory.workplaceSlots);
-      this.output = new Inventory(CONFIG.inventory.workplaceSlots);
+      this.input = new Inventory(CONFIG.inventory.workplaceSlots, { inventoryType: 'inout' });
+      this.output = new Inventory(CONFIG.inventory.workplaceSlots, { inventoryType: 'inout' });
     }
   }
 

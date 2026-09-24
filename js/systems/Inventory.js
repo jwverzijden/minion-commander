@@ -7,9 +7,10 @@
  */
 
 export class Inventory {
-  constructor(capacity, { singleType = false } = {}) {
+  constructor(capacity, { singleType = false, inventoryType = null } = {}) {
     this.capacity = capacity;
     this.singleType = singleType;
+    this.inventoryType = inventoryType;
 
     /** resource id -> quantity */
     this.items = {};
@@ -45,15 +46,16 @@ export class Inventory {
   }
 
   canAdd(type, qty = 1) {
-    if (!this.designatedType) {
-      return false;
-    }
+    const active = this.isEmpty ? this.designatedType : this.type;
     if (this.singleType) {
       // While holding items, only the held type may be added; once empty, the
       // player's designation (or any type, when auto) takes over. This keeps a
       // single-type inventory from ever mixing two item types.
-      const active = this.isEmpty ? this.designatedType : this.type;
       if (active && active !== type) return false;
+    }
+    if (this.inventoryType === 'storage') {
+      // storage cant accept anything if the selection is none
+      if (active === null) return false;
     }
     return this.total + qty <= this.capacity;
   }
