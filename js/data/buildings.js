@@ -103,10 +103,10 @@ export const BUILDING_DEFS = {
   minionDuplicationStation: {
     id: 'minionDuplicationStation',
     name: 'Duplication Station',
-    description: 'Duplicates a minion (coming soon).',
+    description: 'Duplicates a minion.',
     footprint: { w: 2, h: 2 },
     workplaces: 1,
-    cost: { refinedPlanks: 20, gears: 10, ironIngot: 10, copperWire: 5 },
+    cost: { planks: 20, gears: 10 },
     kind: 'building',
     color: '#a86fe0',
     behavior: 'duplicate',
@@ -175,7 +175,7 @@ export const BUILDING_DEFS = {
   transportStation: {
     id: 'transportStation',
     name: 'Transport Station',
-    description: 'Moves items between inventories (coming soon).',
+    description: 'Moves items between inventories.',
     footprint: { w: 3, h: 3 },
     workplaces: 4,
     cost: { wood: 20, planks: 15, refinedPlanks: 5 },
