@@ -152,8 +152,8 @@ export class Game {
     return this.saveManager.save({
       version: 1,
       seed: this.seed,
-      startX: this.startX,
-      startY: this.startY,
+      startX: this.camera.cx,
+      startY: this.camera.cy,
       time: this.time.toJSON(),
       tiles,
       buildings: this.buildings.structures.map((b) => b.toJSON()),
