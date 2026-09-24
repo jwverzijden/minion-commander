@@ -57,13 +57,12 @@ function generateBiomes(world, rng, g) {
   for (let i = 0; i < g.riverCount; i++) {
     let x = Math.floor(rng() * world.size);
     let y = Math.floor(rng() * world.size);
-    let dx = pickDir(rng);
-    let dy = pickDir(rng);
+    let dx = 0, dy = 0;
+    [dx, dy] = pickDir(rng);
     for (let s = 0; s < g.riverSegments; s++) {
       carveRiverAt(world, x, y, g.riverWidth);
-      if (rng() < 0.12) {
-        dx = pickDir(rng);
-        dy = pickDir(rng);
+      if (rng() < 0.05) {
+        [dx, dy] = pickDir(rng);
       }
       x += dx;
       y += dy;
@@ -78,11 +77,16 @@ function generateBiomes(world, rng, g) {
 }
 
 function pickDir(rng) {
-  const r = rng();
-  if (r < 0.25) return -1;
-  if (r < 0.5) return 1;
-  if (r < 0.75) return 0;
-  return 0;
+  const r = rng() * 0.8;
+  if (r < 0.1) return [ 0, -1];
+  if (r < 0.2) return [-1,  0];
+  if (r < 0.3) return [-1, -1];
+  if (r < 0.4) return [ 0,  1];
+  if (r < 0.5) return [ 1,  0];
+  if (r < 0.6) return [ 1,  1];
+  if (r < 0.7) return [ 1, -1];
+  if (r < 0.8) return [-1,  1];
+  return [0, 0];
 }
 
 function carveRiverAt(world, cx, cy, width) {

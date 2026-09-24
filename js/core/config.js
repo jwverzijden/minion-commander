@@ -67,9 +67,9 @@ export const CONFIG = {
     stoneOvals: 24, // number of stony area ovals
     stoneOvalRadiusMin: 4,
     stoneOvalRadiusMax: 9,
-    riverCount: 6, // number of squiggly rivers
+    riverCount: 3, // number of squiggly rivers
     riverSegments: 140, // steps per river walk
-    riverWidth: 2, // average half-width of a river
+    riverWidth: 1, // average half-width of a river
     forestCount: 30, // number of forest ovals
     forestRadiusMin: 3,
     forestRadiusMax: 8,
