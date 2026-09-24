@@ -40,6 +40,19 @@ export class HUD {
     spacer.className = 'spacer';
     this.statusEl.appendChild(spacer);
 
+    this.decrementSimSpeedBtn = document.createElement('button');
+    this.decrementSimSpeedBtn.textContent = '-';
+    this.statusEl.appendChild(this.decrementSimSpeedBtn);
+    
+    this.simSpeedSpan = document.createElement('span');
+    this.simSpeedSpan.textContent = '1x';
+    this.simSpeedSpan.className = 'label';
+    this.statusEl.appendChild(this.simSpeedSpan);
+    
+    this.incrementSimSpeedBtn = document.createElement('button');
+    this.incrementSimSpeedBtn.textContent = '+';
+    this.statusEl.appendChild(this.incrementSimSpeedBtn);
+
     this.pauseBtn = document.createElement('button');
     this.pauseBtn.textContent = 'Pause';
     this.statusEl.appendChild(this.pauseBtn);
@@ -122,6 +135,14 @@ export class HUD {
     this.tooltip.classList.remove('visible');
   }
 
+  setDecrementSimSpeedHandler(fn) {
+    this.decrementSimSpeedBtn.onclick = fn;
+  }
+
+  setIncrementSimSpeedHandler(fn) {
+    this.incrementSimSpeedBtn.onclick = fn;
+  }
+
   setPauseHandler(fn) {
     this.pauseBtn.onclick = fn;
   }
@@ -138,6 +159,10 @@ export class HUD {
     for (const id of RESOURCE_IDS) {
       this.resValueEls[id].textContent = String(totals[id] || 0);
     }
+
+    this.decrementSimSpeedBtn.disabled = game.simSpeed === 1;
+    this.incrementSimSpeedBtn.disabled = game.simSpeed === 8;
+    this.simSpeedSpan.textContent = game.simSpeed;
 
     this.pauseBtn.textContent = game.paused ? 'Resume' : 'Pause';
     this.pauseBtn.classList.toggle('paused', game.paused);

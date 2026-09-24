@@ -51,6 +51,7 @@ export class Game {
     this.startY = CONFIG.world.size / 2;
 
     this.state = 'menu'; // 'menu' | 'playing'
+    this.simSpeed = 1;
     this.paused = false;
     this.menuVisible = true;
 
@@ -244,7 +245,7 @@ export class Game {
   }
 
   _update(dt) {
-    const realDt = Math.min(dt, 0.25);
+    const realDt = Math.min(dt * this.simSpeed, 0.25);
     const dtHours = realDt / CONFIG.time.secondsPerHour;
     const crossed = this.time.advance(realDt);
 
@@ -290,6 +291,8 @@ export class Game {
     this.input.onMouseUp = (button) => this._onMouseUp(button);
     this.input.onMouseMove = () => this._onMouseMove();
     this.hud.onSelect = (id) => this.selectBuilding(id);
+    this.hud.setDecrementSimSpeedHandler(() => this._decrementSimSpeed());
+    this.hud.setIncrementSimSpeedHandler(() => this._incrementSimSpeed());
     this.hud.setPauseHandler(() => this.togglePause());
   }
 
@@ -399,6 +402,16 @@ export class Game {
       onControls: () => this.menu.showControls(() => this._onEscape()),
       onSaveAndExit: () => this.exitToMenu(),
     });
+  }
+
+  _decrementSimSpeed() {
+    if( this.simSpeed === 1 ) return;
+    this.simSpeed = this.simSpeed / 2;
+  }
+
+  _incrementSimSpeed() {
+    if( this.simSpeed === 8 ) return;
+    this.simSpeed = this.simSpeed * 2;
   }
 
   togglePause() {
