@@ -234,7 +234,7 @@ export class Inspector {
     const grid = document.createElement('div');
     grid.className = 'item-grid';
     grid.appendChild(
-      this._itemButton('Auto', null, inv.designatedType === null, () => {
+      this._itemButton('None', null, inv.designatedType === null, () => {
         this.building.inventory.setDesignation(null);
         this._storageType = this.building.inventory.type;
         this._render();
@@ -261,7 +261,7 @@ export class Inspector {
     const grid = document.createElement('div');
     grid.className = 'item-grid';
     grid.appendChild(
-      this._itemButton('Auto', null, b.designatedRecipe === null, () => {
+      this._itemButton('None', null, b.designatedRecipe === null, () => {
         this.building.designatedRecipe = null;
         this._render();
       }),

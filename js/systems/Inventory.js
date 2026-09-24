@@ -45,6 +45,9 @@ export class Inventory {
   }
 
   canAdd(type, qty = 1) {
+    if (!this.designatedType) {
+      return false;
+    }
     if (this.singleType) {
       // While holding items, only the held type may be added; once empty, the
       // player's designation (or any type, when auto) takes over. This keeps a
