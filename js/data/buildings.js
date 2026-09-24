@@ -26,7 +26,7 @@ export const BUILDING_DEFS = {
     description: 'Minions walk faster on fast paths.',
     footprint: { w: 1, h: 1 },
     workplaces: 0,
-    cost: { gravel: 5 },
+    cost: { gravel: 1 },
     kind: 'fastPath',
     color: '#d9d2b8',
   },
