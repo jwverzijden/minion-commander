@@ -769,7 +769,7 @@ export class TaskSystem {
 
   _dropAtFeet(m, itemType) {
     const tile = this.world.tile(m.tileX(), m.tileY());
-    if (tile && !(tile.structure && this.structure.def.id !== 'path') && tile.biome !== 'river') {
+    if (tile && !(tile.structure && tile.structure.def.id !== 'path') && tile.biome !== 'river') {
       if (!tile.groundItem || tile.groundItem.type === itemType) {
         if (tile.groundItem) tile.groundItem.qty += 1;
         else tile.groundItem = { type: itemType, qty: 1 };
