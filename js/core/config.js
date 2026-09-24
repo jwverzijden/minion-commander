@@ -80,7 +80,7 @@ export const CONFIG = {
     groundWoodDensity: 0.05, // open green tiles that start with a wood item
     groundStoneDensity: 0.07,
     groundOreDensity: 0.04,
-    startingMinions: 5,
+    startingMinions: 10,
     startingArea: 5, // 5x5 spawn area
   },
 
