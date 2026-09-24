@@ -254,7 +254,7 @@ export class TaskSystem {
           for (let x = Math.floor(cx - r); x <= Math.floor(cx + r); x++) {
             const t = this.world.tile(x, y);
             if (t && t.vein && !claimed.has(`drill:${x},${y}`)) {
-              out.push({ type: 'drill', itemType: t.vein === 'iron' ? 'ironOre' : 'copperOre', x, y });
+              out.push({ type: 'drill', itemType: t.vein === 'stone' ? 'stone' : 'iron' ? 'ironOre' : 'copperOre', x, y });
             }
           }
         }
