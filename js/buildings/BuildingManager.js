@@ -7,7 +7,7 @@ import { CONFIG } from '../core/config.js';
 import { buildingDef } from '../data/buildings.js';
 import { Building } from './Building.js';
 
-const WALKABLE_KINDS = new Set(['path', 'fastPath', 'bridge']);
+const WALKABLE_KINDS = new Set(['path', 'fastPath', 'bridge', 'door']);
 
 export class BuildingManager {
   constructor(world) {
@@ -198,9 +198,10 @@ export class BuildingManager {
 
     const storage = this.storageWith(type, fromX, fromY);
     if (storage) {
-      bestD = cheb(storage.x, storage.y, fromX, fromY);
+      const door = storage.doorTile();
+      bestD = cheb(door.x, door.y, fromX, fromY);
       // Store an id (serialisable), never a live Building reference.
-      best = { kind: 'storage', x: storage.x, y: storage.y, buildingId: storage.id };
+      best = { kind: 'storage', x: door.x, y: door.y, buildingId: storage.id };
     }
 
     for (const t of this.world.forEachTile()) {

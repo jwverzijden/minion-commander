@@ -38,7 +38,7 @@ export const CONFIG = {
 
   // ---- Task / work durations (in-game hours) ----
   work: {
-    collectHours: 0.1,
+    collectHours: 1 / 15,
     cutTreeHours: 1,
     replantHours: 1,
     constructHours: 1 / 15, // finishing any building (no-cost buildings too)
@@ -104,6 +104,7 @@ export function tileSpeed(world, x, y) {
       return CONFIG.minion.speedFastPathTilesPerHour;
     case 'path':
     case 'bridge':
+    case 'door':
       return CONFIG.minion.speedPathTilesPerHour;
     default:
       return CONFIG.minion.speedOffPathTilesPerHour;
