@@ -120,7 +120,8 @@ function generateResourceTiles(world, rng, g) {
     });
   }
 
-  // Ore veins (iron + copper) inside stone areas, spaced apart.
+  // Ore veins (stone + iron + copper) inside stone areas, spaced apart.
+  placeVeins(world, rng, 'stone', g.oreVeinCountStone, g.oreVeinMinGap);
   placeVeins(world, rng, 'iron', g.oreVeinCountIron, g.oreVeinMinGap);
   placeVeins(world, rng, 'copper', g.oreVeinCountCopper, g.oreVeinMinGap);
 }

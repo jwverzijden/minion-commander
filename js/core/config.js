@@ -74,6 +74,7 @@ export const CONFIG = {
     forestRadiusMin: 3,
     forestRadiusMax: 8,
     treeDensity: 0.62, // chance a forest-oval tile grows a tree
+    oreVeinCountStone: 40,
     oreVeinCountIron: 40,
     oreVeinCountCopper: 40,
     oreVeinMinGap: 3, // veins keep some distance apart
