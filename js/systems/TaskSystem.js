@@ -430,7 +430,7 @@ export class TaskSystem {
   _tDrill(m, t, dt) {
     if (t.step === 0) {
       if (this._stepMove(m, t.x, t.y, { x: t.x, y: t.y }, dt)) t.step = 1;
-    } else if (this._stepWork(m, CONFIG.work.collectHours, dt)) {
+    } else if (this._stepWork(m, CONFIG.work.cutTreeHours, dt)) {
       const tile = this.world.tile(t.x, t.y);
       if (tile && tile.vein) {
         if (tile.groundItem && tile.groundItem.type === t.itemType) tile.groundItem.qty += 1;

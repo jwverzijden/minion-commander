@@ -100,7 +100,7 @@ export function drawVein(ctx, tile, ts) {
   if (!vein) return;
   const cx = tile.x * ts + ts / 2;
   const cy = tile.y * ts + ts / 2;
-  const ore = vein === 'stone' ? '#666666' : 'iron' ? '#b09a8c' : '#c98a4a';
+  const ore = vein === 'stone' ? '#666666' : vein === 'iron' ? '#b09a8c' : '#c98a4a';
 
   ctx.fillStyle = '#5a5f66';
   ctx.beginPath();
