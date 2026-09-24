@@ -237,5 +237,19 @@ assert(
 const took = taskSystem._takeFromSource(roundtrip, 'wood', roundtrip.task.source);
 assert(took === true && srcStore.inventory.count('wood') === 2, '_takeFromSource works after a load');
 
+// --- Storage sources must target the walkable door tile, not the blocked corner ---
+const srcWorld = generateWorld(1234).world;
+for (const t of srcWorld.forEachTile()) t.groundItem = null;
+const srcBm = new BuildingManager(srcWorld);
+const srcStoreB = new Building(buildingDef('storageSmall'), 40, 40, 0);
+srcStoreB.state = 'built';
+srcStoreB.inventory.add('wood', 5);
+srcBm.structures.push(srcStoreB);
+const srcPos = srcBm.findSourceFor('wood', 45, 45);
+assert(
+  srcPos && srcPos.kind === 'storage' && srcPos.buildingId === srcStoreB.id && srcPos.x === 40 && srcPos.y === 41,
+  'storage source targets the door tile (walkable), not the top-left corner',
+);
+
 console.log(failures === 0 ? '\nAll smoke checks passed.' : `\n${failures} check(s) FAILED.`);
 process.exit(failures === 0 ? 0 : 1);

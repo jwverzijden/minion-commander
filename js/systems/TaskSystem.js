@@ -12,7 +12,7 @@ import { RECIPES, STATION_RECIPES } from '../data/resources.js';
 import { findPath } from './Pathfinding.js';
 
 const LIFESPAN_HOURS = CONFIG.minion.lifespanDays * CONFIG.time.hoursPerDay;
-const COLLECTABLE = new Set(['wood', 'stone', 'ironOre', 'copperOre']);
+const COLLECTABLE = new Set(['wood', 'stone', 'ironOre', 'copperOre', 'planks', 'gravel', 'gears', 'refinedPlanks', 'copperWire', 'ironIngot', 'copperIngot']);
 
 function cheb(x1, y1, x2, y2) {
   return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2));
