@@ -13,7 +13,7 @@ wood -> planks -> gears
         planks -> refined planks
 stone -> gravel
 iron ore -> iron ingot
-copper ore -> copper ingot -> copper wire
+copper ore -> copper ingot -> wire
 
 ## buildings
 buildings must be connected to a path. minions can only walk on paths unless their job requires them to venture off the path. All buildings have a door at 1 corner and 1 side, when placing a building ghost to be build it can be rotated 90 degree with R, a building with no construction cost still needs to be build by a minion, building something with no cost takes 1/15th of an ingame hour. a minion can deliver materials to a construction site from a path next to the construction site.
@@ -60,7 +60,7 @@ bridge
     - workplaces: 0
     - cost: 5 planks
 factory
-    - description: craft planks, refined planks, gears, gravel or copper wire
+    - description: craft planks, refined planks, gears, gravel or wire
     - footprint: 2x3
     - workplaces: 2
     - cost: 10 wood
@@ -83,12 +83,12 @@ drilling station
     - description: drill for stone or ore
     - footprint: 3z3
     - workplaces: 4
-    - cost: 20 wood + 20 planks + 10 gears + 10 iron ingot + 5 copper wire + 40 gravel
+    - cost: 20 wood + 20 planks + 10 gears + 10 iron ingot + 5 wire + 40 gravel
 minion duplication station
     - description: duplicates the minion
     - footprint: 2x2
     - workplaces: 1
-    - cost: 20 refined planks + 10 gears + 10 iron ingot + 5 copper wire
+    - cost: 20 refined planks + 10 gears + 10 iron ingot + 5 wire
 
 ### resource generators
 tree
@@ -136,7 +136,7 @@ craft 1 gear: 3 hours, requires 1 plank
 craft 1 gravel: 2 hours, requires 1 stone
 craft 1 iron ingot: 2 hours, requires 1 iron ore
 craft 1 copper ingot: 2 hours, requires 1 copper ore
-craft 1 copper wire: 2 hours, requires 1 copper ingot
+craft 1 wire: 2 hours, requires 1 copper ingot
 
 ### starting order of operations
 1. build paths and wood collecting stations to nearby wood laying around

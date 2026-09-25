@@ -12,7 +12,7 @@ import { RECIPES, STATION_RECIPES } from '../data/resources.js';
 import { findPath } from './Pathfinding.js';
 
 const LIFESPAN_HOURS = CONFIG.minion.lifespanDays * CONFIG.time.hoursPerDay;
-const COLLECTABLE = new Set(['wood', 'stone', 'ironOre', 'copperOre', 'planks', 'gravel', 'gears', 'refinedPlanks', 'copperWire', 'ironIngot', 'copperIngot']);
+const COLLECTABLE = new Set(['wood', 'stone', 'ironOre', 'copperOre', 'planks', 'gravel', 'gears', 'refinedPlanks', 'wire', 'ironIngot', 'copperIngot']);
 
 /** Work tasks that a paused building must not perform. */
 const WORK_TASK_TYPES = new Set(['craft', 'duplicate', 'recharge', 'collect', 'cutTree', 'replant', 'drill']);
