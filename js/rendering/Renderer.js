@@ -13,6 +13,7 @@ import {
   drawBuilding,
   drawMinion,
   drawGhost,
+  drawSelection,
 } from './Sprites.js';
 
 export class Renderer {
@@ -103,6 +104,11 @@ export class Renderer {
     } else if (game.ghost) {
       const g = game.ghost;
       drawGhost(ctx, world, g.def, g.x, g.y, g.rotation, g.valid, ts);
+    }
+
+    // Highlight the inspected building / resource / minion.
+    if (game.inspected) {
+      drawSelection(ctx, game.inspected, ts);
     }
 
     ctx.restore();

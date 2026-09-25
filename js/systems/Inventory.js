@@ -20,6 +20,8 @@ export class Inventory {
 
     /** Player's chosen type for single-type storage (null = auto). */
     this.designatedType = null;
+
+    this.assignedDelivery = 0;
   }
 
   get total() {
@@ -45,7 +47,31 @@ export class Inventory {
     return this.type;
   }
 
+  assignDelivery(qty = 1) {
+    this.assignedDelivery += qty;
+  }
+
+  /** Release a reservation without adding an item (task dropped or re-routed). */
+  releaseDelivery(qty = 1) {
+    this.assignedDelivery = Math.max(0, this.assignedDelivery - qty);
+  }
+
   canAdd(type, qty = 1) {
+    const active = this.isEmpty ? this.designatedType : this.type;
+    if (this.singleType) {
+      // While holding items, only the held type may be added; once empty, the
+      // player's designation (or any type, when auto) takes over. This keeps a
+      // single-type inventory from ever mixing two item types.
+      if (active && active !== type) return false;
+    }
+    if (this.inventoryType === 'storage') {
+      // storage cant accept anything if the selection is none
+      if (active === null) return false;
+    }
+    return this.total + qty + this.assignedDelivery <= this.capacity;
+  }
+
+  canAdd2(type, qty = 1) {
     const active = this.isEmpty ? this.designatedType : this.type;
     if (this.singleType) {
       // While holding items, only the held type may be added; once empty, the
@@ -60,10 +86,12 @@ export class Inventory {
     return this.total + qty <= this.capacity;
   }
 
-  add(type, qty = 1) {
-    if (!this.canAdd(type, qty)) return 0;
+  add(type, qty = 1, adjustAssignedDelivery = true) {
+    if (!this.canAdd2(type, qty)) return 0;
     if (this.singleType) this.type = type;
     this.items[type] = (this.items[type] || 0) + qty;
+    if( adjustAssignedDelivery )
+      this.assignedDelivery = Math.max(0, this.assignedDelivery - qty);
     return qty;
   }
 

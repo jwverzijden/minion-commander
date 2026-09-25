@@ -16,7 +16,7 @@ export const RESOURCE_TYPES = {
   ironIngot: { id: 'ironIngot', name: 'Iron Ingot', color: '#c9cdd2', textColor: '#1a1200' },
   copperOre: { id: 'copperOre', name: 'Copper Ore', color: '#b07a3f', textColor: '#fff' },
   copperIngot: { id: 'copperIngot', name: 'Copper Ingot', color: '#d9822b', textColor: '#1a1200' },
-  copperWire: { id: 'copperWire', name: 'Copper Wire', color: '#e0913f', textColor: '#1a1200' },
+  wire: { id: 'wire', name: 'Wire', color: '#e0913f', textColor: '#1a1200' },
 };
 
 /** Ordered list for stable UI display. */
@@ -31,7 +31,7 @@ export const RESOURCE_IDS = [
   'ironIngot',
   'copperOre',
   'copperIngot',
-  'copperWire',
+  'wire',
 ];
 
 /**
@@ -58,17 +58,17 @@ export const RECIPES = {
   refinedPlanks: { id: 'refinedPlanks', output: 'refinedPlanks', inputs: { planks: 1 }, hours: 2 },
   gears: { id: 'gears', output: 'gears', inputs: { planks: 1 }, hours: 3 },
   gravel: { id: 'gravel', output: 'gravel', inputs: { stone: 1 }, hours: 2 },
-  copperWire: { id: 'copperWire', output: 'copperWire', inputs: { copperIngot: 1 }, hours: 2 },
+  wire: { id: 'wire', output: 'wire', inputs: { copperIngot: 1 }, hours: 2 },
   ironIngot: { id: 'ironIngot', output: 'ironIngot', inputs: { ironOre: 1 }, hours: 2 },
   copperIngot: { id: 'copperIngot', output: 'copperIngot', inputs: { copperOre: 1 }, hours: 2 },
 };
 
 /**
  * The recipes each station knows how to run.
- * (factory: planks / refined planks / gears / gravel / copper wire,
+ * (factory: planks / refined planks / gears / gravel / wire,
  *  smeltery: iron & copper ingots)
  */
 export const STATION_RECIPES = {
-  factory: ['planks', 'refinedPlanks', 'gears', 'gravel', 'copperWire'],
+  factory: ['planks', 'refinedPlanks', 'gears', 'gravel', 'wire'],
   smeltery: ['ironIngot', 'copperIngot'],
 };

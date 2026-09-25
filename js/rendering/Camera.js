@@ -16,21 +16,28 @@ export class Camera {
     this.rotation = 0; // 0..3 (90-degree clockwise turns)
     this.vw = 800;
     this.vh = 600;
+    this.zoom = 1; // 1 = fully zoomed in (max), 0 = whole world visible
+    this.minTileSize = CONFIG.world.tileSize;
+    this.maxTileSize = CONFIG.world.tileSize;
     this.tileSize = CONFIG.world.tileSize;
   }
 
   resize(vw, vh) {
     this.vw = vw;
     this.vh = vh;
-    this.tileSize = Math.max(
+    this.maxTileSize = Math.max(
       CONFIG.world.tileSize,
       Math.ceil(Math.max(vw, vh) / this.worldSize),
     );
+    this.minTileSize = Math.min(vw, vh) / this.worldSize;
+    if (this.minTileSize > this.maxTileSize) this.minTileSize = this.maxTileSize;
+    this._applyZoom();
     this.clamp();
   }
 
   rotate(delta) {
     this.rotation = (this.rotation + delta + 4) % 4;
+    this.clamp();
   }
 
   /** Pan by a screen-space pixel delta (WASD). */
@@ -47,6 +54,51 @@ export class Camera {
     this.clamp();
   }
 
+  // -------------------------------------------------------------------- zoom
+
+  _applyZoom() {
+    this.tileSize = this.minTileSize + (this.maxTileSize - this.minTileSize) * this.zoom;
+  }
+
+  setZoom(zoom) {
+    this.zoom = Math.max(0, Math.min(1, zoom));
+    this._applyZoom();
+    this.clamp();
+  }
+
+  /** Zoom by a factor applied to tile size (>1 zooms in, <1 zooms out). */
+  zoomBy(factor) {
+    const next = this.tileSize * factor;
+    const clamped = Math.max(this.minTileSize, Math.min(this.maxTileSize, next));
+    this.zoom = this.maxTileSize > this.minTileSize
+      ? (clamped - this.minTileSize) / (this.maxTileSize - this.minTileSize)
+      : 1;
+    this._applyZoom();
+    this.clamp();
+  }
+
+  zoomIn() {
+    this.zoomBy(1.25);
+  }
+
+  zoomOut() {
+    this.zoomBy(1 / 1.25);
+  }
+
+  /** Zoom level as a percentage of the fully zoomed-in (max) scale. */
+  get zoomPercent() {
+    if (this.maxTileSize <= 0) return 100;
+    return Math.round((this.tileSize / this.maxTileSize) * 100);
+  }
+
+  get canZoomIn() {
+    return this.tileSize < this.maxTileSize - 0.0001;
+  }
+
+  get canZoomOut() {
+    return this.tileSize > this.minTileSize + 0.0001;
+  }
+
   clamp() {
     // Half-extents in tiles. The viewport swaps axes when rotated 90 degrees,
     // so each axis uses its own dimension rather than the larger of the two.
@@ -54,8 +106,14 @@ export class Camera {
     const vhTiles = this.vh / this.tileSize;
     const halfX = ((this.rotation % 2 === 0) ? vwTiles : vhTiles) / 2;
     const halfY = ((this.rotation % 2 === 0) ? vhTiles : vwTiles) / 2;
-    this.cx = Math.max(halfX, Math.min(this.worldSize - halfX, this.cx));
-    this.cy = Math.max(halfY, Math.min(this.worldSize - halfY, this.cy));
+    // Zoomed out, the world can be smaller than the viewport: centre it rather
+    // than clamping, which would otherwise push the camera off-centre.
+    this.cx = halfX >= this.worldSize / 2
+      ? this.worldSize / 2
+      : Math.max(halfX, Math.min(this.worldSize - halfX, this.cx));
+    this.cy = halfY >= this.worldSize / 2
+      ? this.worldSize / 2
+      : Math.max(halfY, Math.min(this.worldSize - halfY, this.cy));
   }
 
   _screenVecToWorld(dx, dy) {

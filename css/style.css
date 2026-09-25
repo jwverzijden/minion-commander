@@ -560,3 +560,38 @@ body {
   color: var(--text-dim);
   font-style: italic;
 }
+
+/* ---- Inspector: active work (craft / duplicate / recharge) ---- */
+#inspector .work-row {
+  margin-bottom: 10px;
+}
+
+#inspector .work-row .progress-track {
+  margin-bottom: 0;
+}
+
+/* ---- Inspector: pause/resume a building ---- */
+#inspector .pause-btn {
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: #262c3a;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: center;
+}
+
+#inspector .pause-btn:hover {
+  border-color: var(--accent);
+}
+
+#inspector .pause-btn.paused {
+  background: #241f12;
+  border-color: var(--accent-hot);
+  color: var(--accent-hot);
+}

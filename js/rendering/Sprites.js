@@ -138,7 +138,7 @@ export function drawBuilding(ctx, building, ts) {
   const w = (maxX - minX + 1) * ts;
   const h = (maxY - minY + 1) * ts;
   const def = building.def;
-  const color = def.color || '#888';
+  const color = building.paused ? '#aaa' : def.color || '#888';
 
   if (def.kind === 'path' || def.kind === 'fastPath' || def.kind === 'bridge') {
     drawPathTile(ctx, building, minX, minY, ts);
@@ -147,7 +147,7 @@ export function drawBuilding(ctx, building, ts) {
 
   // Construction sites: pale + progress bar.
   if (building.state === 'construction') {
-    ctx.globalAlpha = 0.6;
+    ctx.globalAlpha = 0.4;
   }
 
   // Base footprint.
@@ -159,7 +159,14 @@ export function drawBuilding(ctx, building, ts) {
 
   // Raised "roof" face for a subtle 3/4 feel.
   const inset = Math.max(2, ts * 0.1);
-  ctx.fillStyle = shade(color, 1.25);
+  if (building.state === 'construction') {
+    ctx.fillStyle = shade(color, 0.75);
+  } else {
+    ctx.fillStyle = shade(color, 1.25);
+  }
+  if (building.paused) {
+    ctx.fillStyle = color;
+  }
   ctx.fillRect(px + inset, py + inset, w - inset * 2, h - inset * 2);
   ctx.strokeStyle = 'rgba(0,0,0,0.25)';
   ctx.lineWidth = 1;
@@ -178,7 +185,7 @@ export function drawBuilding(ctx, building, ts) {
       const storedType = building.inventory.type;
       if (storedType && RESOURCE_TYPES[storedType]) {
         const res = RESOURCE_TYPES[storedType];
-        const s = ts * 0.44;
+        const s = ts * 0.64;
         ctx.fillStyle = res.color;
         ctx.beginPath();
         ctx.roundRect(px + w / 2 - s / 2, py + h / 2 - s / 2, s, s, 3);
@@ -193,13 +200,31 @@ export function drawBuilding(ctx, building, ts) {
         ctx.textBaseline = 'middle';
         ctx.fillText(emblem(def.id), px + w / 2, py + h / 2 + 1);
       }
-    } else {
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      ctx.font = `bold ${Math.round(ts * 0.5)}px system-ui, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(emblem(def.id), px + w / 2, py + h / 2 + 1);
+    } else if (def.id === 'factory' || def.id === 'smeltery' && building.designatedRecipe) {
+      const storedType = building.designatedRecipe;
+      if (storedType && RESOURCE_TYPES[storedType]) {
+        const res = RESOURCE_TYPES[storedType];
+        const s = ts * 0.64;
+        ctx.fillStyle = res.color;
+        ctx.beginPath();
+        ctx.roundRect(px + w / 2 - s / 2, py + h / 2 - s / 2, s, s, 3);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.font = `bold ${Math.round(ts * 0.5)}px system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(emblem(def.id), px + w / 2, py + h / 2 + 1);
+      }
     }
+    ctx.fillStyle = 'rgba(32, 32, 32, 0.9)';
+    ctx.font = `bold ${Math.round(ts * 0.5)}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emblem(def.id, building), px + w / 2, py + h / 2 + 1);
   }
 
   if (building.state === 'construction') {
@@ -361,6 +386,50 @@ export function drawGhost(ctx, world, def, x, y, rotation, valid, ts) {
   ctx.fillRect(dx + ts * 0.3, dy + ts * 0.3, ts * 0.4, ts * 0.4);
 }
 
+/**
+ * Draw a pulsing highlight around the currently inspected target:
+ * a building (whole footprint), an ore vein / tree (single tile), or a minion
+ * (its current tile, so the ring follows it as it moves).
+ */
+export function drawSelection(ctx, selection, ts) {
+  if (!selection) return;
+
+  let rects = [];
+  if (selection.kind === 'building') {
+    const b = selection.building;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const t of b.footprintTiles()) {
+      minX = Math.min(minX, t.x);
+      minY = Math.min(minY, t.y);
+      maxX = Math.max(maxX, t.x);
+      maxY = Math.max(maxY, t.y);
+    }
+    rects = [{ x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 }];
+  } else if (selection.kind === 'minion') {
+    const m = selection.minion;
+    if (m.dead) return;
+    rects = [{ x: Math.floor(m.x), y: Math.floor(m.y), w: 1, h: 1 }];
+  } else if (selection.kind === 'vein' || selection.kind === 'tree') {
+    rects = [{ x: selection.x, y: selection.y, w: 1, h: 1 }];
+  }
+
+  const pulse = 0.55 + 0.45 * Math.sin(performance.now() / 200);
+  for (const r of rects) {
+    const px = r.x * ts;
+    const py = r.y * ts;
+    const pw = r.w * ts;
+    const ph = r.h * ts;
+    ctx.fillStyle = `rgba(255, 209, 102, ${0.1 + 0.06 * pulse})`;
+    ctx.fillRect(px + 1, py + 1, pw - 2, ph - 2);
+    ctx.strokeStyle = `rgba(255, 209, 102, ${pulse})`;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(px + 1.5, py + 1.5, pw - 3, ph - 3);
+  }
+}
+
 /** Draw a building icon for the hotbar. */
 export function drawIcon(ctx, defId, size) {
   const def = BUILDING_DEFS[defId];
@@ -379,14 +448,14 @@ export function drawIcon(ctx, defId, size) {
   ctx.fillText(emblem(defId), size / 2, size / 2 + 1);
 }
 
-function emblem(id) {
+function emblem(id, b = null) {
   const map = {
     path: 'P',
     fastPath: 'F',
     bridge: 'B',
     collectingStation: 'C',
     woodcuttingStation: 'W',
-    forestingStation: 'G',
+    forestingStation: 'F',
     drillingStation: 'D',
     rechargeStation: '⚡',
     minionDuplicationStation: 'M',
@@ -397,6 +466,12 @@ function emblem(id) {
     smeltery: 'S',
     transportStation: 'T',
   };
+  if( b && b.inventory && b.inventory.designatedType ) {
+    return b.inventory.designatedType.slice(0,2);
+  }
+  if( b && b.designatedRecipe ) {
+    return b.designatedRecipe.slice(0,2);
+  }
   return map[id] || '?';
 }
 

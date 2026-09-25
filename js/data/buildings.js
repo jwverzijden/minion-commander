@@ -82,7 +82,7 @@ export const BUILDING_DEFS = {
     description: 'Drills stone and ore from veins.',
     footprint: { w: 3, h: 3 },
     workplaces: 4,
-    cost: { wood: 20, planks: 20, gears: 10, ironIngot: 10, copperWire: 5, gravel: 40 },
+    cost: { wood: 20, planks: 20, gears: 10, ironIngot: 10, wire: 5, gravel: 40 },
     kind: 'building',
     color: '#5b6772',
     behavior: 'drill',
@@ -151,7 +151,7 @@ export const BUILDING_DEFS = {
   factory: {
     id: 'factory',
     name: 'Factory',
-    description: 'Crafts planks, refined planks, gears, gravel and copper wire.',
+    description: 'Crafts planks, refined planks, gears, gravel and wire.',
     footprint: { w: 3, h: 2 },
     workplaces: 2,
     cost: { wood: 10 },

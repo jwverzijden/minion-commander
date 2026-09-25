@@ -39,19 +39,46 @@ export class HUD {
     const spacer = document.createElement('div');
     spacer.className = 'spacer';
     this.statusEl.appendChild(spacer);
+    
+    this.zoomDiv = document.createElement('div');
+    this.zoomDiv.className = 'stat';
+    this.statusEl.appendChild(this.zoomDiv);
+    
+    this.zoomOutBtn = document.createElement('button');
+    this.zoomOutBtn.textContent = '-';
+    this.zoomOutBtn.className = 'label';
+    this.zoomOutBtn.title = 'Zoom out';
+    this.zoomDiv.appendChild(this.zoomOutBtn);
+
+    this.zoomSpan = document.createElement('span');
+    this.zoomSpan.className = 'value';
+    this.zoomSpan.textContent = '100%';
+    this.zoomDiv.appendChild(this.zoomSpan);
+
+    this.zoomInBtn = document.createElement('button');
+    this.zoomInBtn.textContent = '+';
+    this.zoomInBtn.className = 'label';
+    this.zoomInBtn.title = 'Zoom in';
+    this.zoomDiv.appendChild(this.zoomInBtn);
+
+    this.gameSpeedDiv = document.createElement('div');
+    this.gameSpeedDiv.className = 'stat';
+    this.statusEl.appendChild(this.gameSpeedDiv);
 
     this.decrementSimSpeedBtn = document.createElement('button');
     this.decrementSimSpeedBtn.textContent = '-';
-    this.statusEl.appendChild(this.decrementSimSpeedBtn);
-    
+    this.decrementSimSpeedBtn.className = 'label';
+    this.gameSpeedDiv.appendChild(this.decrementSimSpeedBtn);
+
     this.simSpeedSpan = document.createElement('span');
     this.simSpeedSpan.textContent = '1x';
-    this.simSpeedSpan.className = 'label';
-    this.statusEl.appendChild(this.simSpeedSpan);
+    this.simSpeedSpan.className = 'value';
+    this.gameSpeedDiv.appendChild(this.simSpeedSpan);
     
     this.incrementSimSpeedBtn = document.createElement('button');
     this.incrementSimSpeedBtn.textContent = '+';
-    this.statusEl.appendChild(this.incrementSimSpeedBtn);
+    this.incrementSimSpeedBtn.className = 'label';
+    this.gameSpeedDiv.appendChild(this.incrementSimSpeedBtn);
 
     this.pauseBtn = document.createElement('button');
     this.pauseBtn.textContent = 'Pause';
@@ -147,6 +174,14 @@ export class HUD {
     this.pauseBtn.onclick = fn;
   }
 
+  setZoomInHandler(fn) {
+    this.zoomInBtn.onclick = fn;
+  }
+
+  setZoomOutHandler(fn) {
+    this.zoomOutBtn.onclick = fn;
+  }
+
   update(game) {
     this.dayValue.textContent = String(game.time.day);
     this.timeValue.textContent = game.time.timeOfDay();
@@ -162,10 +197,14 @@ export class HUD {
 
     this.decrementSimSpeedBtn.disabled = game.simSpeed === 1;
     this.incrementSimSpeedBtn.disabled = game.simSpeed === 8;
-    this.simSpeedSpan.textContent = game.simSpeed;
+    this.simSpeedSpan.textContent = `${game.simSpeed}x`;
 
     this.pauseBtn.textContent = game.paused ? 'Resume' : 'Pause';
     this.pauseBtn.classList.toggle('paused', game.paused);
+
+    this.zoomSpan.textContent = `${game.camera.zoomPercent}%`;
+    this.zoomInBtn.disabled = !game.camera.canZoomIn;
+    this.zoomOutBtn.disabled = !game.camera.canZoomOut;
   }
 
   toast(text, kind = 'info') {
