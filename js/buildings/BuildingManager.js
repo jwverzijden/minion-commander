@@ -152,6 +152,7 @@ export class BuildingManager {
     let bestD = Infinity;
     for (const b of this.built) {
       if (b.def.kind !== 'storage') continue;
+      if (!b.inventory.designatedType) continue;
       if (!b.inventory.canAdd(type, 1)) continue;
       const d = cheb(b.x, b.y, fromX, fromY);
       if (d < bestD) {
