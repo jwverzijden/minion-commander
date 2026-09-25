@@ -303,11 +303,13 @@ export class TaskSystem {
           out.push({ type: 'craft', recipeId: recipe.id });
           return out;
         }
-        const fetch = this._pickFetchInput(b);
-        if (fetch) {
-          const n = Math.min(b.def.workplaces, b.input.capacity - b.input.total);
-          for (let i = 0; i < n; i++) {
-            out.push({ type: 'fetchInput', itemType: fetch.itemType, source: fetch.source });
+        if( b.input.isEmpty ) {
+          const fetch = this._pickFetchInput(b);
+          if (fetch) {
+            const n = Math.min(b.def.workplaces, b.input.capacity - b.input.total);
+            for (let i = 0; i < n; i++) {
+              out.push({ type: 'fetchInput', itemType: fetch.itemType, source: fetch.source });
+            }
           }
         }
         return out;
@@ -325,7 +327,6 @@ export class TaskSystem {
           if (!target.input || target.input.isFull) continue;
           const fetch = this._pickFetchInput(target);
           if (fetch) {
-            console.log(target)
             target.input?.assignDelivery(1);
             out.push({
               type: 'fetchInput',
@@ -760,6 +761,10 @@ export class TaskSystem {
   /** Decide where a freshly-acquired item should go; morph task into `deliver`. */
   _planDelivery(m, itemType) {
     const t = m.task;
+    if (!t) {
+      console.log('stuck no task?', m)
+      return false;
+    }
 
     const sites = this.buildings.sitesNeeding(itemType);
     if (sites.length) {
@@ -789,6 +794,7 @@ export class TaskSystem {
       t.destKind = 'storage';
       t.storageId = storage.id;
       t.step = 0;
+      storage.inventory.assignDelivery(1);
       return true;
     }
 
