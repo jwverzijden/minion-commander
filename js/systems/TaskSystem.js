@@ -538,7 +538,7 @@ export class TaskSystem {
     if (!recipe || !this._craftReady(b, recipe)) return this._done(m);
     if (this._stepWork(m, recipe.hours, dt)) {
       for (const inp in recipe.inputs) b.input.remove(inp, recipe.inputs[inp]);
-      b.output.add(recipe.output, 1);
+      b.output.add(recipe.output, 1, false);
       this._done(m);
     }
   }

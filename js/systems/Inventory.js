@@ -81,11 +81,12 @@ export class Inventory {
     return this.total + qty <= this.capacity;
   }
 
-  add(type, qty = 1) {
+  add(type, qty = 1, adjustAssignedDelivery = true) {
     if (!this.canAdd2(type, qty)) return 0;
     if (this.singleType) this.type = type;
     this.items[type] = (this.items[type] || 0) + qty;
-    this.assignedDelivery -= qty;
+    if( adjustAssignedDelivery )
+      this.assignedDelivery -= qty;
     return qty;
   }
 
