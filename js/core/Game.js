@@ -566,7 +566,7 @@ export class Game {
     const tile = this.input.tileUnderMouse(this.camera);
     const b = this.buildings.getAt(tile.x, tile.y);
     if (!b) {
-      this.hud.toast('No building here', 'warn');
+      // this.hud.toast('No building here', 'warn');
       return;
     }
 
@@ -585,10 +585,12 @@ export class Game {
       }
     }
 
-    const parts = Object.entries(refund)
-      .map(([t, q]) => `${q} ${t}`)
-      .join(', ');
-    this.hud.toast(`Demolished ${b.def.name}${parts ? ` — refunded ${parts}` : ''}`, 'info');
+    if(b.def.kind !== 'path' && b.def.kind !== 'fastPath') {
+      const parts = Object.entries(refund)
+        .map(([t, q]) => `${q} ${t}`)
+        .join(', ');
+      this.hud.toast(`Demolished ${b.def.name}${parts ? ` — refunded ${parts}` : ''}`, 'info');
+    }
   }
 
   _resize() {
