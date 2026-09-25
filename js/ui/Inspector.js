@@ -8,11 +8,13 @@
  */
 
 import { RESOURCE_TYPES, RESOURCE_IDS, RECIPES, STATION_RECIPES } from '../data/resources.js';
+import { CONFIG } from '../core/config.js';
 
 export class Inspector {
   constructor(el) {
     this.el = el;
     this.building = null;
+    this.minions = [];
     this._refs = {};
     this._state = null;
     this._storageType = null;
@@ -22,8 +24,9 @@ export class Inspector {
     return !this.el.classList.contains('hidden');
   }
 
-  show(building) {
+  show(building, minions = []) {
     this.building = building;
+    this.minions = minions || [];
     this._state = building.state;
     this._storageType = building.inventory ? building.inventory.type : null;
     this._render();
@@ -34,15 +37,17 @@ export class Inspector {
     this.el.classList.add('hidden');
     this.el.innerHTML = '';
     this.building = null;
+    this.minions = [];
     this._refs = {};
     this._state = null;
     this._storageType = null;
   }
 
   /** Live-update dynamic values without rebuilding the whole panel. */
-  refresh() {
+  refresh(minions) {
     const b = this.building;
     if (!b) return;
+    if (minions) this.minions = minions;
 
     // Re-render on structural changes (state transition, storage type change).
     if (b.state !== this._state) {
@@ -78,6 +83,7 @@ export class Inspector {
     }
     this._renderInvList(this._refs.inputList, b.input);
     this._renderInvList(this._refs.outputList, b.output);
+    if (this._refs.workList) this._updateWork(this._refs.workList);
   }
 
   _render() {
@@ -107,6 +113,16 @@ export class Inspector {
       this._renderStorage(b);
     } else if (b.def.behavior === 'craft') {
       this._renderCraft(b);
+    }
+
+    // Live progress bars for timed work happening at this station.
+    if (
+      b.state === 'built' &&
+      (b.def.behavior === 'craft' ||
+        b.def.behavior === 'duplicate' ||
+        b.def.behavior === 'recharge')
+    ) {
+      this._renderWork(b);
     }
   }
 
@@ -347,6 +363,132 @@ export class Inspector {
       row.appendChild(qty);
       container.appendChild(row);
     }
+  }
+
+  /** Render the "Work" section (craft / duplicate / recharge progress bars). */
+  _renderWork(b) {
+    const h3 = document.createElement('h3');
+    h3.textContent = 'Work';
+    this.el.appendChild(h3);
+
+    const list = document.createElement('div');
+    list.className = 'work-list';
+    this.el.appendChild(list);
+
+    const empty = document.createElement('div');
+    empty.className = 'inv-empty';
+    empty.textContent = 'No active work';
+    this.el.appendChild(empty);
+
+    this._refs.workList = list;
+    this._refs.workEmpty = empty;
+    this._refs.workBars = new Map();
+    this._updateWork(list);
+  }
+
+  /**
+   * Collect the timed work currently happening at `b` by scanning minion tasks.
+   * Buildings don't track their workers, so we derive it from each minion's task.
+   */
+  _workItems(b) {
+    const items = [];
+    for (const m of this.minions) {
+      const t = m.task;
+      if (!t) continue;
+      const bid = t.buildingId ?? t.targetId;
+      if (bid !== b.id) continue;
+
+      if (t.type === 'craft') {
+        const recipe = RECIPES[t.recipeId];
+        const out = recipe ? RESOURCE_TYPES[recipe.output] : null;
+        const working = m.state === 'working' && m.workTotal > 0;
+        items.push({
+          key: `craft:${m.id}:${t.recipeId}`,
+          label: `Crafting ${out ? out.name : t.recipeId || 'item'}`,
+          color: out ? out.color : null,
+          pct: working ? this._workPct(m) : 0,
+        });
+      } else if (t.type === 'duplicate') {
+        const working = m.state === 'working' && m.workTotal > 0;
+        items.push({
+          key: `duplicate:${m.id}`,
+          label: 'Duplicating minion',
+          color: null,
+          pct: working ? this._workPct(m) : 0,
+        });
+      } else if (t.type === 'recharge' && m.state === 'recharging') {
+        items.push({
+          key: `recharge:${m.id}`,
+          label: 'Recharging minion',
+          color: null,
+          pct: Math.min(1, m.battery / CONFIG.minion.maxBatteryHours),
+        });
+      }
+    }
+    return items;
+  }
+
+  /** Fraction [0,1] of a timed-work task that has elapsed. */
+  _workPct(m) {
+    if (m.workTotal <= 0) return 0;
+    return Math.max(0, Math.min(1, 1 - m.workRemaining / m.workTotal));
+  }
+
+  /** Reconcile the work list against the current set of active work items. */
+  _updateWork(list) {
+    if (!list) return;
+    const items = this._workItems(this.building);
+    if (this._refs.workEmpty) {
+      this._refs.workEmpty.style.display = items.length ? 'none' : '';
+    }
+    const bars = this._refs.workBars || (this._refs.workBars = new Map());
+
+    const seen = new Set();
+    for (const it of items) {
+      seen.add(it.key);
+      let bar = bars.get(it.key);
+      if (!bar) {
+        bar = this._makeWorkBar();
+        bars.set(it.key, bar);
+        list.appendChild(bar.row);
+      }
+      bar.label.textContent = it.label;
+      if (it.color) bar.fill.style.background = it.color;
+      const pct = Math.round(it.pct * 100);
+      bar.fill.style.width = `${pct}%`;
+      bar.pct.textContent = `${pct}%`;
+    }
+
+    for (const [key, bar] of bars) {
+      if (!seen.has(key)) {
+        bar.row.remove();
+        bars.delete(key);
+      }
+    }
+  }
+
+  _makeWorkBar() {
+    const row = document.createElement('div');
+    row.className = 'work-row';
+
+    const head = document.createElement('div');
+    head.className = 'progress-row';
+    const label = document.createElement('span');
+    label.className = 'progress-label';
+    const pct = document.createElement('span');
+    pct.className = 'progress-pct';
+    head.appendChild(label);
+    head.appendChild(pct);
+    row.appendChild(head);
+
+    const track = document.createElement('div');
+    track.className = 'progress-track';
+    const fill = document.createElement('div');
+    fill.className = 'progress-fill';
+    track.appendChild(fill);
+    row.appendChild(track);
+
+    return { row, label, pct, fill };
   }
 
   _itemButton(label, color, active, onClick) {

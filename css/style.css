@@ -560,3 +560,12 @@ body {
   color: var(--text-dim);
   font-style: italic;
 }
+
+/* ---- Inspector: active work (craft / duplicate / recharge) ---- */
+#inspector .work-row {
+  margin-bottom: 10px;
+}
+
+#inspector .work-row .progress-track {
+  margin-bottom: 0;
+}

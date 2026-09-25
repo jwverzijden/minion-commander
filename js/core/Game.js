@@ -225,7 +225,7 @@ export class Game {
     if (this.world) {
       this.renderer.render(this);
       this.hud.update(this);
-      if (this.inspector.visible) this.inspector.refresh();
+      if (this.inspector.visible) this.inspector.refresh(this.minions);
     }
 
     requestAnimationFrame((t) => this._loop(t));
@@ -361,7 +361,7 @@ export class Game {
     // preselect a storage type or crafting recipe).
     const b = this.buildings.getAt(tile.x, tile.y);
     if (b) {
-      this.inspector.show(b);
+      this.inspector.show(b, this.minions);
     } else {
       this.inspector.hide();
     }
