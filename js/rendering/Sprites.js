@@ -224,7 +224,7 @@ export function drawBuilding(ctx, building, ts) {
     ctx.font = `bold ${Math.round(ts * 0.5)}px system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(emblem(def.id), px + w / 2, py + h / 2 + 1);
+    ctx.fillText(emblem(def.id, building), px + w / 2, py + h / 2 + 1);
   }
 
   if (building.state === 'construction') {
@@ -448,14 +448,14 @@ export function drawIcon(ctx, defId, size) {
   ctx.fillText(emblem(defId), size / 2, size / 2 + 1);
 }
 
-function emblem(id) {
+function emblem(id, b = null) {
   const map = {
     path: 'P',
     fastPath: 'F',
     bridge: 'B',
     collectingStation: 'C',
     woodcuttingStation: 'W',
-    forestingStation: 'G',
+    forestingStation: 'F',
     drillingStation: 'D',
     rechargeStation: '⚡',
     minionDuplicationStation: 'M',
@@ -466,6 +466,12 @@ function emblem(id) {
     smeltery: 'S',
     transportStation: 'T',
   };
+  if( b && b.inventory && b.inventory.designatedType ) {
+    return b.inventory.designatedType.slice(0,2);
+  }
+  if( b && b.designatedRecipe ) {
+    return b.designatedRecipe.slice(0,2);
+  }
   return map[id] || '?';
 }
 
