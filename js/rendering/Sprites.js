@@ -147,7 +147,7 @@ export function drawBuilding(ctx, building, ts) {
 
   // Construction sites: pale + progress bar.
   if (building.state === 'construction') {
-    ctx.globalAlpha = 0.6;
+    ctx.globalAlpha = 0.4;
   }
 
   // Base footprint.
@@ -156,6 +156,18 @@ export function drawBuilding(ctx, building, ts) {
   ctx.strokeStyle = 'rgba(0,0,0,0.45)';
   ctx.lineWidth = 2;
   ctx.strokeRect(px + 1, py + 1, w - 2, h - 2);
+
+  // Raised "roof" face for a subtle 3/4 feel.
+  const inset = Math.max(2, ts * 0.1);
+  if (building.state === 'construction') {
+    ctx.fillStyle = shade(color, 0.75);
+  } else {
+    ctx.fillStyle = shade(color, 1.25);
+  }
+  ctx.fillRect(px + inset, py + inset, w - inset * 2, h - inset * 2);
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(px + inset, py + inset, w - inset * 2, h - inset * 2);
 
   // Door notch.
   const door = building.doorTile();
