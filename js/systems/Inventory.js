@@ -51,6 +51,11 @@ export class Inventory {
     this.assignedDelivery += qty;
   }
 
+  /** Release a reservation without adding an item (task dropped or re-routed). */
+  releaseDelivery(qty = 1) {
+    this.assignedDelivery = Math.max(0, this.assignedDelivery - qty);
+  }
+
   canAdd(type, qty = 1) {
     const active = this.isEmpty ? this.designatedType : this.type;
     if (this.singleType) {
@@ -86,7 +91,7 @@ export class Inventory {
     if (this.singleType) this.type = type;
     this.items[type] = (this.items[type] || 0) + qty;
     if( adjustAssignedDelivery )
-      this.assignedDelivery -= qty;
+      this.assignedDelivery = Math.max(0, this.assignedDelivery - qty);
     return qty;
   }
 

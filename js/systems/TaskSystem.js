@@ -75,8 +75,10 @@ export class TaskSystem {
     }
 
     // Track sources already claimed by active tasks (so two minions never
-    // target the same tree/item/buffer).
+    // target the same tree/item/buffer), and in-flight craft consumption so a
+    // building never books more crafts than its input/output can support.
     const claimed = new Set();
+    const craftLoad = new Map(); // building id -> { input: {type:qty}, output:n }
     for (const m of minions) {
       if (!m.task) continue;
       const t = m.task;
@@ -85,6 +87,18 @@ export class TaskSystem {
       } else if (t.type === 'cutTree') claimed.add(`cut:${t.x},${t.y}`);
       else if (t.type === 'drill') claimed.add(`drill:${t.x},${t.y}`);
       else if (t.type === 'replant') claimed.add(`replant:${t.x},${t.y}`);
+      else if (t.type === 'fetchInput') {
+        claimed.add(`fetch:${t.targetId ?? t.buildingId}:${t.itemType}`);
+      } else if (t.type === 'craft') {
+        const recipe = RECIPES[t.recipeId];
+        if (recipe) {
+          const id = t.targetId ?? t.buildingId;
+          const load = craftLoad.get(id) || { input: {}, output: 0 };
+          for (const inp in recipe.inputs) load.input[inp] = (load.input[inp] || 0) + recipe.inputs[inp];
+          load.output += 1;
+          craftLoad.set(id, load);
+        }
+      }
     }
 
     // Free storage capacity per type, minus items already in flight to storage.
@@ -99,7 +113,7 @@ export class TaskSystem {
         if (b.paused) continue;
         const free = b.def.workplaces - (active.get(b.id) || 0);
         if (free <= 0) continue;
-        const tasks = this._buildingTasks(b, claimed, freeStorage).slice(0, free);
+        const tasks = this._buildingTasks(b, claimed, freeStorage, craftLoad).slice(0, free);
         for (const t of tasks) {
           t.buildingId = b.id;
           t.step = 0;
@@ -223,7 +237,7 @@ export class TaskSystem {
   }
 
   /** Build candidate tasks for a finished workplace building. */
-  _buildingTasks(b, claimed, freeStorage) {
+  _buildingTasks(b, claimed, freeStorage, craftLoad) {
     const r = CONFIG.station.radius;
     const cx = b.x + b.rotatedW / 2;
     const cy = b.y + b.rotatedH / 2;
@@ -280,7 +294,7 @@ export class TaskSystem {
         for (let y = Math.floor(cy - r); y <= Math.floor(cy + r); y++) {
           for (let x = Math.floor(cx - r); x <= Math.floor(cx + r); x++) {
             const t = this.world.tile(x, y);
-            if (t && t.vein && !claimed.has(`drill:${x},${y}`)) {
+            if (t && t.vein && !t.groundItem && !claimed.has(`drill:${x},${y}`)) {
               const itemType = t.vein === 'iron' ? 'ironOre' : t.vein === 'copper' ? 'copperOre' : 'stone';
               if (!this._hasDestinationFor(itemType, freeStorage)) continue;
               claimed.add(`drill:${x},${y}`);
@@ -300,16 +314,24 @@ export class TaskSystem {
         // }
         const recipe = this._pickCraftRecipe(b);
         if (recipe) {
+          // In-flight crafts already reserve their input and output; don't book
+          // another craft that would find its input gone (or output full) on
+          // arrival and be forced to abort.
+          const load = craftLoad.get(b.id);
+          if (load) {
+            for (const inp in recipe.inputs) {
+              if (b.input.count(inp) - (load.input[inp] || 0) < recipe.inputs[inp]) return out;
+            }
+            if (b.output.total + load.output + 1 > b.output.capacity) return out;
+          }
           out.push({ type: 'craft', recipeId: recipe.id });
           return out;
         }
         if( b.input.isEmpty ) {
           const fetch = this._pickFetchInput(b);
-          if (fetch) {
-            const n = Math.min(b.def.workplaces, b.input.capacity - b.input.total);
-            for (let i = 0; i < n; i++) {
-              out.push({ type: 'fetchInput', itemType: fetch.itemType, source: fetch.source });
-            }
+          if (fetch && !claimed.has(`fetch:${b.id}:${fetch.itemType}`)) {
+            claimed.add(`fetch:${b.id}:${fetch.itemType}`);
+            out.push({ type: 'fetchInput', itemType: fetch.itemType, source: fetch.source });
           }
         }
         return out;
@@ -326,13 +348,15 @@ export class TaskSystem {
         for (const target of this.buildings.built) {
           if (!target.input || target.input.isFull) continue;
           const fetch = this._pickFetchInput(target);
-          if (fetch) {
+          if (fetch && !claimed.has(`fetch:${target.id}:${fetch.itemType}`)) {
+            claimed.add(`fetch:${target.id}:${fetch.itemType}`);
             target.input?.assignDelivery(1);
             out.push({
               type: 'fetchInput',
               targetId: target.id,
               itemType: fetch.itemType,
               source: fetch.source,
+              reservation: { kind: 'input', buildingId: target.id },
             });
           }
         }
@@ -462,7 +486,7 @@ export class TaskSystem {
   _tCollect(m, t, dt) {
     const source = t.source || { kind: 'ground', x: t.x, y: t.y };
     if (t.step === 0) {
-      if (this._stepMove(m, source.x, source.y, null, dt)) t.step = 1;
+      if (this._stepMove(m, source.x, source.y, this._sourceGoal(source), dt)) t.step = 1;
     } else if (source.kind === 'ground') {
       if (this._stepWork(m, CONFIG.work.collectHours, dt)) this._collectFinish(m, t, source);
     } else {
@@ -513,7 +537,7 @@ export class TaskSystem {
       if (this._stepMove(m, t.x, t.y, { x: t.x, y: t.y }, dt)) t.step = 1;
     } else if (this._stepWork(m, CONFIG.work.cutTreeHours, dt)) {
       const tile = this.world.tile(t.x, t.y);
-      if (tile && tile.vein) {
+      if (tile && tile.vein && !tile.groundItem) {
         // Drop the ore as a ground item; the collecting station moves it.
         if (tile.groundItem && tile.groundItem.type === t.itemType) {
           tile.groundItem.qty += 1;
@@ -556,7 +580,7 @@ export class TaskSystem {
     if (!b || b.state !== 'built') return this._done(m);
 
     if (t.step === 0) {
-      if (this._stepMove(m, t.source.x, t.source.y, null, dt)) {
+      if (this._stepMove(m, t.source.x, t.source.y, this._sourceGoal(t.source), dt)) {
         if (this._takeFromSource(m, t.itemType, t.source)) {
           m.carried = { type: t.itemType, qty: 1 };
           t.step = 1;
@@ -571,6 +595,7 @@ export class TaskSystem {
     if (!this._stepMove(m, door.x, door.y, null, dt)) return;
     if (b.input.canAdd2(t.itemType, 1)) {
       b.input.add(t.itemType, 1);
+      t.reservation = null;
       m.carried = null;
       this._done(m);
     } else {
@@ -600,7 +625,7 @@ export class TaskSystem {
     if (!site || site.state !== 'construction') return this._done(m);
 
     if (t.step === 0) {
-      if (this._stepMove(m, t.source.x, t.source.y, null, dt)) {
+      if (this._stepMove(m, t.source.x, t.source.y, this._sourceGoal(t.source), dt)) {
         if (this._takeFromSource(m, t.itemType, t.source)) {
           m.carried = { type: t.itemType, qty: 1 };
           t.step = 1;
@@ -688,6 +713,15 @@ export class TaskSystem {
 
   // --- shared movement / work / delivery helpers ---------------------------
 
+  /**
+   * The tile a ground-item source sits on, passed as a pathfinding `goal` so a
+   * minion can step onto it even when an ore vein blocks the tile. Building and
+   * storage sources sit on a walkable door tile, so they need no goal.
+   */
+  _sourceGoal(source) {
+    return source && source.kind === 'ground' ? { x: source.x, y: source.y } : null;
+  }
+
   /** Move toward a tile. Returns true once arrived (or if already there). */
   _stepMove(m, tx, ty, goal, dt) {
     if (m.tileX() === tx && m.tileY() === ty) {
@@ -746,7 +780,9 @@ export class TaskSystem {
     }
     if (t.destKind === 'storage') {
       const storage = this.buildings.getBuilding(t.storageId);
-      return !!(storage && storage.state === 'built' && storage.inventory.add(itemType, 1) > 0);
+      const ok = !!(storage && storage.state === 'built' && storage.inventory.add(itemType, 1) > 0);
+      if (ok) t.reservation = null;
+      return ok;
     }
     if (t.destKind === 'ground') {
       const tile = this.world.tile(t.dest.x, t.dest.y);
@@ -759,6 +795,19 @@ export class TaskSystem {
     return false;
   }
 
+  /** Release a capacity reservation a dropped/re-routed task still holds. */
+  _releaseReservation(t) {
+    if (!t || !t.reservation) return;
+    const b = this.buildings.getBuilding(t.reservation.buildingId);
+    if (b) {
+      const inv = t.reservation.kind === 'storage' ? b.inventory
+        : t.reservation.kind === 'input' ? b.input
+        : null;
+      inv?.releaseDelivery(1);
+    }
+    t.reservation = null;
+  }
+
   /** Decide where a freshly-acquired item should go; morph task into `deliver`. */
   _planDelivery(m, itemType) {
     const t = m.task;
@@ -766,6 +815,9 @@ export class TaskSystem {
       console.log('stuck no task?', m)
       return false;
     }
+
+    // Re-planning replaces whatever the previous destination reserved.
+    this._releaseReservation(t);
 
     const sites = this.buildings.sitesNeeding(itemType);
     if (sites.length) {
@@ -796,6 +848,7 @@ export class TaskSystem {
       t.storageId = storage.id;
       t.step = 0;
       storage.inventory.assignDelivery(1);
+      t.reservation = { kind: 'storage', buildingId: storage.id };
       return true;
     }
 
@@ -882,6 +935,7 @@ export class TaskSystem {
   _done(m) {
     // Never leave a minion idle while still carrying something.
     if (m.carried) this._dropAtFeet(m, m.carried.type);
+    this._releaseReservation(m.task);
     m.task = null;
     m.state = 'idle';
     m.path = [];
@@ -896,6 +950,7 @@ export class TaskSystem {
 
   _kill(m) {
     if (m.carried) this._dropAtFeet(m, m.carried.type);
+    this._releaseReservation(m.task);
     m.dead = true;
     m.task = null;
     this.bus.emit('minion-died', { x: m.tileX(), y: m.tileY() });
