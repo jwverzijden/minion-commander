@@ -138,7 +138,7 @@ export function drawBuilding(ctx, building, ts) {
   const w = (maxX - minX + 1) * ts;
   const h = (maxY - minY + 1) * ts;
   const def = building.def;
-  const color = def.color || '#888';
+  const color = building.paused ? '#aaa' : def.color || '#888';
 
   if (def.kind === 'path' || def.kind === 'fastPath' || def.kind === 'bridge') {
     drawPathTile(ctx, building, minX, minY, ts);
@@ -156,14 +156,6 @@ export function drawBuilding(ctx, building, ts) {
   ctx.strokeStyle = 'rgba(0,0,0,0.45)';
   ctx.lineWidth = 2;
   ctx.strokeRect(px + 1, py + 1, w - 2, h - 2);
-
-  // Raised "roof" face for a subtle 3/4 feel.
-  const inset = Math.max(2, ts * 0.1);
-  ctx.fillStyle = shade(color, 1.25);
-  ctx.fillRect(px + inset, py + inset, w - inset * 2, h - inset * 2);
-  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(px + inset, py + inset, w - inset * 2, h - inset * 2);
 
   // Door notch.
   const door = building.doorTile();
@@ -193,13 +185,31 @@ export function drawBuilding(ctx, building, ts) {
         ctx.textBaseline = 'middle';
         ctx.fillText(emblem(def.id), px + w / 2, py + h / 2 + 1);
       }
-    } else {
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      ctx.font = `bold ${Math.round(ts * 0.5)}px system-ui, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(emblem(def.id), px + w / 2, py + h / 2 + 1);
+    } else if (def.id === 'factory' || def.id === 'smeltery' && building.designatedRecipe) {
+      const storedType = building.designatedRecipe;
+      if (storedType && RESOURCE_TYPES[storedType]) {
+        const res = RESOURCE_TYPES[storedType];
+        const s = ts * 0.44;
+        ctx.fillStyle = res.color;
+        ctx.beginPath();
+        ctx.roundRect(px + w / 2 - s / 2, py + h / 2 - s / 2, s, s, 3);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.font = `bold ${Math.round(ts * 0.5)}px system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(emblem(def.id), px + w / 2, py + h / 2 + 1);
+      }
     }
+    ctx.fillStyle = 'rgba(32, 32, 32, 0.9)';
+    ctx.font = `bold ${Math.round(ts * 0.5)}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emblem(def.id), px + w / 2, py + h / 2 + 1);
   }
 
   if (building.state === 'construction') {
