@@ -325,6 +325,8 @@ export class TaskSystem {
           if (!target.input || target.input.isFull) continue;
           const fetch = this._pickFetchInput(target);
           if (fetch) {
+            console.log(target)
+            target.input?.assignDelivery(1);
             out.push({
               type: 'fetchInput',
               targetId: target.id,
@@ -565,7 +567,7 @@ export class TaskSystem {
     // step 1: return to the building and deposit into its input buffer.
     const door = b.doorTile();
     if (!this._stepMove(m, door.x, door.y, null, dt)) return;
-    if (b.input.canAdd(t.itemType, 1)) {
+    if (b.input.canAdd2(t.itemType, 1)) {
       b.input.add(t.itemType, 1);
       m.carried = null;
       this._done(m);
