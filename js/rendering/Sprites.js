@@ -164,6 +164,9 @@ export function drawBuilding(ctx, building, ts) {
   } else {
     ctx.fillStyle = shade(color, 1.25);
   }
+  if (building.paused) {
+    ctx.fillStyle = color;
+  }
   ctx.fillRect(px + inset, py + inset, w - inset * 2, h - inset * 2);
   ctx.strokeStyle = 'rgba(0,0,0,0.25)';
   ctx.lineWidth = 1;
