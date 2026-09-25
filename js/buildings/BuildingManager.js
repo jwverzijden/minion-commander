@@ -189,10 +189,12 @@ export class BuildingManager {
   }
 
   /**
-   * Find the nearest source of `type`: a storage holding it, or a ground item.
-   * @returns {{kind:'storage'|'ground', x:number, y:number, building?:Building}|null}
+   * Find the nearest source of `type`: a storage holding it, or a nearby ground
+   * item. Ground items are limited to `maxGroundRadius` so a minion never treks
+   * across the whole map for a loose item; storage remains the long-distance source.
+   * @returns {{kind:'storage'|'ground', x:number, y:number, buildingId?:number}|null}
    */
-  findSourceFor(type, fromX, fromY) {
+  findSourceFor(type, fromX, fromY, maxGroundRadius = CONFIG.station.radius) {
     let best = null;
     let bestD = Infinity;
 
@@ -204,12 +206,14 @@ export class BuildingManager {
       best = { kind: 'storage', x: door.x, y: door.y, buildingId: storage.id };
     }
 
-    for (const t of this.world.forEachTile()) {
-      if (t.groundItem && t.groundItem.type === type && t.groundItem.qty > 0) {
-        const d = cheb(t.x, t.y, fromX, fromY);
+    for (let y = fromY - maxGroundRadius; y <= fromY + maxGroundRadius; y++) {
+      for (let x = fromX - maxGroundRadius; x <= fromX + maxGroundRadius; x++) {
+        const t = this.world.tile(x, y);
+        if (!t || !t.groundItem || t.groundItem.type !== type || t.groundItem.qty <= 0) continue;
+        const d = cheb(x, y, fromX, fromY);
         if (d < bestD) {
           bestD = d;
-          best = { kind: 'ground', x: t.x, y: t.y };
+          best = { kind: 'ground', x, y };
         }
       }
     }

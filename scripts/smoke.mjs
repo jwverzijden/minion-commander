@@ -313,5 +313,23 @@ assert(
   '_takeFromSource reads building output',
 );
 
+// --- findSourceFor limits ground-item search to a radius ---
+const fsWorld = new World(40);
+const fsBm = new BuildingManager(fsWorld);
+fsWorld.tile(30, 30).groundItem = { type: 'stone', qty: 1 }; // far
+fsWorld.tile(10, 10).groundItem = { type: 'stone', qty: 1 }; // near (to 11,11)
+const nearSrc = fsBm.findSourceFor('stone', 11, 11);
+assert(nearSrc && nearSrc.kind === 'ground' && nearSrc.x === 10 && nearSrc.y === 10, 'findSourceFor finds nearby ground items');
+const farSrc = fsBm.findSourceFor('stone', 2, 2);
+assert(farSrc === null, 'findSourceFor does not source distant ground items');
+
+const fsStore = new Building(buildingDef('storageSmall'), 35, 35, 0);
+fsStore.state = 'built';
+fsStore.inventory.setDesignation('stone');
+fsStore.inventory.add('stone', 3);
+fsBm.structures.push(fsStore);
+const storageSrc = fsBm.findSourceFor('stone', 2, 2);
+assert(storageSrc && storageSrc.kind === 'storage', 'distant storage is still a valid source');
+
 console.log(failures === 0 ? '\nAll smoke checks passed.' : `\n${failures} check(s) FAILED.`);
 process.exit(failures === 0 ? 0 : 1);
