@@ -472,6 +472,7 @@ export class TaskSystem {
   }
 
   _collectFinish(m, t, source) {
+    if (!this.buildings.storageAccepting(t.itemType, m.x, m.y)) return this._done(m);
     if (this._takeFromSource(m, t.itemType, source)) {
       m.carried = { type: t.itemType, qty: 1 };
       if (!this._planDelivery(m, t.itemType)) this._done(m);
