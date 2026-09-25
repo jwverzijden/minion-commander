@@ -37,6 +37,9 @@ export class Building {
     /** Recipe id a craft building is locked to (null = auto pick). */
     this.designatedRecipe = null;
 
+    /** Paused: keep selection, but perform no work. */
+    this.paused = false;
+
     // ---- Inventories ----
     if (def.kind === 'storage') {
       this.inventory = new Inventory(def.capacity, { singleType: true, inventoryType: 'storage' });
@@ -149,6 +152,7 @@ export class Building {
       delivered: { ...this.delivered },
       finishProgress: this.finishProgress,
       designatedRecipe: this.designatedRecipe,
+      paused: this.paused,
     };
     if (this.inventory) o.inventory = this.inventory.toJSON();
     if (this.input) o.input = this.input.toJSON();
@@ -163,6 +167,7 @@ export class Building {
     b.delivered = { ...(o.delivered || {}) };
     b.finishProgress = o.finishProgress ?? 0;
     b.designatedRecipe = o.designatedRecipe ?? null;
+    b.paused = o.paused ?? false;
     if (o.inventory) b.inventory = Inventory.fromJSON(o.inventory);
     if (o.input) b.input = Inventory.fromJSON(o.input);
     if (o.output) b.output = Inventory.fromJSON(o.output);

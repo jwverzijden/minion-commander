@@ -29,6 +29,7 @@ export class Inspector {
     this._refs = {};
     this._state = null;
     this._storageType = null;
+    this._paused = null;
   }
 
   get visible() {
@@ -55,6 +56,7 @@ export class Inspector {
     this._refs = {};
     this._state = null;
     this._storageType = null;
+    this._paused = null;
   }
 
   /** Live-update dynamic values without rebuilding the whole panel. */
@@ -83,6 +85,12 @@ export class Inspector {
     }
 
     const b = this.building;
+
+    // Re-render when the pause state changes.
+    if (b.paused !== this._paused) {
+      this._render();
+      return;
+    }
 
     // Re-render on structural changes (state transition, storage type change).
     if (b.state !== this._state) {
@@ -147,6 +155,8 @@ export class Inspector {
   }
 
   _renderBuilding(b) {
+    this._paused = b.paused;
+
     const h2 = document.createElement('h2');
     h2.textContent = b.def.name;
     this.el.appendChild(h2);
@@ -157,6 +167,10 @@ export class Inspector {
     this.el.appendChild(desc);
 
     this._renderStatus(b);
+
+    if (b.state === 'built' && b.def.workplaces > 0) {
+      this._renderPauseToggle(b);
+    }
 
     if (b.def.kind === 'storage') {
       this._renderStorage(b);
@@ -173,6 +187,18 @@ export class Inspector {
     ) {
       this._renderWork(b);
     }
+  }
+
+  _renderPauseToggle(b) {
+    const btn = document.createElement('button');
+    btn.className = 'pause-btn' + (b.paused ? ' paused' : '');
+    btn.textContent = b.paused ? 'Paused — P to resume' : 'Running — P to pause';
+    btn.title = 'Pause or resume work at this building (hotkey: P)';
+    btn.addEventListener('click', () => {
+      b.paused = !b.paused;
+      this._render();
+    });
+    this.el.appendChild(btn);
   }
 
   _renderResource(resId, subtitle) {

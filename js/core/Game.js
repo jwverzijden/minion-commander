@@ -319,6 +319,9 @@ export class Game {
     this.hud.setDecrementSimSpeedHandler(() => this._decrementSimSpeed());
     this.hud.setIncrementSimSpeedHandler(() => this._incrementSimSpeed());
     this.hud.setPauseHandler(() => this.togglePause());
+    this.hud.setZoomInHandler(() => this._zoomIn());
+    this.hud.setZoomOutHandler(() => this._zoomOut());
+    this.input.onWheel = (deltaY) => this._onWheel(deltaY);
   }
 
   _onKeyDown(key) {
@@ -349,6 +352,9 @@ export class Game {
       case 'q':
         this.camera.rotate(-1);
         this._updateGhost();
+        break;
+      case 'p':
+        this._toggleInspectedPause();
         break;
       case 'x':
       case 'delete':
@@ -472,6 +478,32 @@ export class Game {
   togglePause() {
     if (this.state !== 'playing' || this.menuVisible) return;
     this.paused = !this.paused;
+  }
+
+  // -------------------------------------------------------------------- zoom
+
+  _zoomIn() {
+    this.camera.zoomIn();
+  }
+
+  _zoomOut() {
+    this.camera.zoomOut();
+  }
+
+  _onWheel(deltaY) {
+    if (this.state !== 'playing' || this.menuVisible) return;
+    if (deltaY < 0) this.camera.zoomIn();
+    else this.camera.zoomOut();
+  }
+
+  /** Toggle pause on the currently inspected building (hotkey P). */
+  _toggleInspectedPause() {
+    const s = this.inspected;
+    if (!s || s.kind !== 'building') return;
+    const b = s.building;
+    if (b.state !== 'built' || b.def.workplaces <= 0) return;
+    b.paused = !b.paused;
+    if (this.inspector.visible) this.inspector.refresh(this.minions);
   }
 
   // ---------------------------------------------------------------- building

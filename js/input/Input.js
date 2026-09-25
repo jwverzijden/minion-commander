@@ -16,6 +16,7 @@ export class Input {
     this.onMouseDown = null; // (button, event)
     this.onMouseUp = null; // (button, event)
     this.onMouseMove = null; // (event)
+    this.onWheel = null; // (deltaY)
 
     this._bind();
   }
@@ -64,6 +65,11 @@ export class Input {
     });
 
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    this.canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      if (this.onWheel) this.onWheel(e.deltaY);
+    }, { passive: false });
   }
 
   /** Tile under the cursor, per the camera. */

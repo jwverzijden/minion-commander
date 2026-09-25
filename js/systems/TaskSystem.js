@@ -14,6 +14,9 @@ import { findPath } from './Pathfinding.js';
 const LIFESPAN_HOURS = CONFIG.minion.lifespanDays * CONFIG.time.hoursPerDay;
 const COLLECTABLE = new Set(['wood', 'stone', 'ironOre', 'copperOre', 'planks', 'gravel', 'gears', 'refinedPlanks', 'copperWire', 'ironIngot', 'copperIngot']);
 
+/** Work tasks that a paused building must not perform. */
+const WORK_TASK_TYPES = new Set(['craft', 'duplicate', 'recharge', 'collect', 'cutTree', 'replant', 'drill']);
+
 function cheb(x1, y1, x2, y2) {
   return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2));
 }
@@ -93,6 +96,7 @@ export class TaskSystem {
     const constructionCandidates = [];
     for (const b of this.buildings.structures) {
       if (b.state === 'built' && b.def.workplaces > 0 && b.def.behavior) {
+        if (b.paused) continue;
         const free = b.def.workplaces - (active.get(b.id) || 0);
         if (free <= 0) continue;
         const tasks = this._buildingTasks(b, claimed, freeStorage).slice(0, free);
@@ -174,6 +178,7 @@ export class TaskSystem {
     let bestD = Infinity;
     for (const b of this.buildings.built) {
       if (b.def.behavior !== 'recharge') continue;
+      if (b.paused) continue;
       if (busy.has(b.id)) continue;
       const d = cheb(m.tileX(), m.tileY(), b.x, b.y);
       if (d < bestD) {
@@ -409,6 +414,16 @@ export class TaskSystem {
   _execute(m, dt, timeHours) {
     const t = m.task;
     if (!t) return;
+
+    // A paused building performs no work — abandon in-progress work tasks.
+    if (t.buildingId != null && WORK_TASK_TYPES.has(t.type)) {
+      const owner = this.buildings.getBuilding(t.buildingId);
+      if (owner && owner.paused && owner.state === 'built') {
+        this._done(m);
+        return;
+      }
+    }
+
     switch (t.type) {
       case 'collect':
         return this._tCollect(m, t, dt);
