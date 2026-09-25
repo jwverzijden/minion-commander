@@ -37,7 +37,7 @@ function assert(cond, msg) {
 const gen = generateWorld(12345);
 const world = gen.world;
 assert(world.size === CONFIG.world.size, 'world is 100x100');
-assert(gen.start.spawnPositions.length === CONFIG.worldGen.startingMinions, '5 minions spawned');
+assert(gen.start.spawnPositions.length === CONFIG.worldGen.startingMinions, `${CONFIG.worldGen.startingMinions} minions spawned`);
 assert(gen.start.spawnPositions.every((p) => world.inBounds(p.x, p.y)), 'spawn positions in bounds');
 
 // --- Building placement ---
@@ -48,8 +48,14 @@ assert(!buildings.add('path', gen.start.x, gen.start.y, 0).ok, 'reject overlappi
 assert(buildings.add('bridge', 0, 0, 0).ok === false || world.tile(0, 0).biome !== 'river', 'bridge rejects non-river');
 
 // --- Pathfinding ---
-const path = findPath(world, gen.start.x, gen.start.y + 1, gen.start.x + 4, gen.start.y + 1, {});
-assert(Array.isArray(path) && path.length >= 5, 'pathfinding returns a route');
+const pfWorld = new World(20);
+const pfBm = new BuildingManager(pfWorld);
+for (let x = 2; x <= 10; x++) {
+  const pr = pfBm.add('path', x, 5, 0);
+  if (pr.ok) pr.building.state = 'built';
+}
+const path = findPath(pfWorld, 2, 5, 10, 5, {});
+assert(Array.isArray(path) && path.length >= 9, 'pathfinding returns a route');
 
 // --- Simulation ---
 const minions = gen.start.spawnPositions.map((p) => new Minion(p.x, p.y));
@@ -132,24 +138,30 @@ assert(cam2.cy > 80, 'camera can reach near the bottom of the world');
 // --- Transport & duplication task generation ---
 const factory = new Building(buildingDef('factory'), 40, 40, 0);
 factory.state = 'built';
-factory.output.add('planks', 1);
+factory.designatedRecipe = 'planks';
 buildings.structures.push(factory);
+
+const woodStore = new Building(buildingDef('storageSmall'), 44, 44, 0);
+woodStore.state = 'built';
+woodStore.inventory.setDesignation('wood');
+woodStore.inventory.add('wood', 5);
+buildings.structures.push(woodStore);
 
 const transport = new Building(buildingDef('transportStation'), 46, 46, 0);
 transport.state = 'built';
 buildings.structures.push(transport);
 
-const tTasks = taskSystem._buildingTasks(transport);
+const tTasks = taskSystem._buildingTasks(transport, new Set(), new Map());
 assert(
-  tTasks.some((t) => t.type === 'depositOutput' && t.targetId === factory.id),
-  'transport station deposits craft output',
+  tTasks.some((t) => t.type === 'fetchInput' && t.targetId === factory.id),
+  'transport station fetches craft input',
 );
 
 const dup = new Building(buildingDef('minionDuplicationStation'), 60, 60, 0);
 dup.state = 'built';
 buildings.structures.push(dup);
 assert(
-  taskSystem._buildingTasks(dup).some((t) => t.type === 'duplicate'),
+  taskSystem._buildingTasks(dup, new Set(), new Map()).some((t) => t.type === 'duplicate'),
   'duplication station generates a duplicate task',
 );
 
@@ -172,15 +184,16 @@ assert(
   'duplication spawns a new minion',
 );
 
-// --- Sink gating (collect only when something wants the item) ---
+// --- Sink gating (collect only when a destination exists) ---
 const sinkWorld = generateWorld(999).world;
 const sinkBm = new BuildingManager(sinkWorld);
 const sinkTs = new TaskSystem(sinkWorld, sinkBm, bus);
-assert(sinkTs._hasSinkFor('wood') === false, 'no sink for wood in an empty world');
+assert(sinkTs._hasDestinationFor('wood', sinkTs._freeStorageByType([])) === false, 'no destination for wood in an empty world');
 const sinkStore = new Building(buildingDef('storageSmall'), 20, 20, 0);
 sinkStore.state = 'built';
+sinkStore.inventory.setDesignation('wood');
 sinkBm.structures.push(sinkStore);
-assert(sinkTs._hasSinkFor('wood') === true, 'an empty storage is a sink for wood');
+assert(sinkTs._hasDestinationFor('wood', sinkTs._freeStorageByType([])) === true, 'a designated storage is a destination for wood');
 
 // --- Claimed targets are not re-assigned (no two minions on one tree) ---
 let treeTile = null;
@@ -194,7 +207,7 @@ if (treeTile) {
   const wcs = new Building(buildingDef('woodcuttingStation'), treeTile.x - 1, treeTile.y - 1, 0);
   wcs.state = 'built';
   const claimedSet = new Set([`cut:${treeTile.x},${treeTile.y}`]);
-  const cutTasks = taskSystem._buildingTasks(wcs, claimedSet, new Set(['wood']));
+  const cutTasks = taskSystem._buildingTasks(wcs, claimedSet, new Map([['wood', 10]]));
   assert(
     !cutTasks.some((t) => t.type === 'cutTree' && t.x === treeTile.x && t.y === treeTile.y),
     'a claimed tree is not re-assigned',
@@ -209,6 +222,12 @@ factory2.input.add('planks', 1);
 const chosen = taskSystem._pickCraftRecipe(factory2);
 assert(chosen && chosen.id === 'gears', 'designated craft recipe is respected');
 
+// --- No automatic recipe selection ("None" is the default) ---
+const factoryNone = new Building(buildingDef('factory'), 32, 32, 0);
+factoryNone.state = 'built';
+assert(taskSystem._pickCraftRecipe(factoryNone) === null, 'no recipe selected -> no crafting');
+assert(taskSystem._pickFetchInput(factoryNone) === null, 'no recipe selected -> no input fetching');
+
 // --- _done never leaves a minion carrying ---
 const carrier = new Minion(5, 5);
 carrier.carried = { type: 'wood', qty: 1 };
@@ -218,6 +237,7 @@ assert(carrier.carried === null && carrier.state === 'idle', '_done drops any ca
 // --- Save/load round-trip of a minion mid-fetchInput (no live references) ---
 const srcStore = new Building(buildingDef('storageSmall'), 10, 10, 0);
 srcStore.state = 'built';
+srcStore.inventory.setDesignation('wood');
 srcStore.inventory.add('wood', 3);
 buildings.structures.push(srcStore);
 
@@ -243,6 +263,7 @@ for (const t of srcWorld.forEachTile()) t.groundItem = null;
 const srcBm = new BuildingManager(srcWorld);
 const srcStoreB = new Building(buildingDef('storageSmall'), 40, 40, 0);
 srcStoreB.state = 'built';
+srcStoreB.inventory.setDesignation('wood');
 srcStoreB.inventory.add('wood', 5);
 srcBm.structures.push(srcStoreB);
 const srcPos = srcBm.findSourceFor('wood', 45, 45);
@@ -261,6 +282,36 @@ dpWorld.tile(12, 12).structure = dpSite;
 const dpMinion = new Minion(12, 11);
 const dp = dpTs._deliveryPoint(dpSite, dpMinion);
 assert(dp.x === 12 && dp.y === 11, 'delivery point is the nearest reachable adjacent tile');
+
+// --- Collecting station gathers building output + wrong input items ---
+const collectWorld = new World(20);
+const collectBm = new BuildingManager(collectWorld);
+const collectTs = new TaskSystem(collectWorld, collectBm, bus);
+const cf = new Building(buildingDef('factory'), 5, 5, 0);
+cf.state = 'built';
+cf.designatedRecipe = 'planks'; // needs wood only
+cf.output.add('planks', 2);
+cf.input.add('wood', 1); // correct
+cf.input.add('ironIngot', 1); // wrong
+collectBm.structures.push(cf);
+const sources = collectTs._collectSources(8, 8, 5);
+assert(
+  sources.some((s) => s.type === 'planks' && s.source.kind === 'output'),
+  'collect sources include building output',
+);
+assert(
+  sources.some((s) => s.type === 'ironIngot' && s.source.kind === 'input'),
+  'collect sources include wrong input items',
+);
+assert(
+  !sources.some((s) => s.type === 'wood' && s.source.kind === 'input'),
+  'correct input items are not cleared',
+);
+assert(
+  collectTs._takeFromSource(new Minion(0, 0), 'planks', { kind: 'output', x: 0, y: 0, buildingId: cf.id }) &&
+    cf.output.count('planks') === 1,
+  '_takeFromSource reads building output',
+);
 
 console.log(failures === 0 ? '\nAll smoke checks passed.' : `\n${failures} check(s) FAILED.`);
 process.exit(failures === 0 ? 0 : 1);

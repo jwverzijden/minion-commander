@@ -71,21 +71,21 @@ export class TaskSystem {
       }
     }
 
-    // Track resources already claimed by active tasks (so two minions never
-    // target the same tree/item) and which types currently have a sink.
+    // Track sources already claimed by active tasks (so two minions never
+    // target the same tree/item/buffer).
     const claimed = new Set();
-    const sinkTypes = new Set();
-    for (const type of COLLECTABLE) {
-      if (this._hasSinkFor(type)) sinkTypes.add(type);
-    }
     for (const m of minions) {
       if (!m.task) continue;
       const t = m.task;
-      if (t.type === 'collect') claimed.add(`collect:${t.x},${t.y}`);
-      else if (t.type === 'cutTree') claimed.add(`cut:${t.x},${t.y}`);
+      if (t.type === 'collect') {
+        claimed.add(this._claimKey(t.itemType, t.source || { kind: 'ground', x: t.x, y: t.y }));
+      } else if (t.type === 'cutTree') claimed.add(`cut:${t.x},${t.y}`);
       else if (t.type === 'drill') claimed.add(`drill:${t.x},${t.y}`);
       else if (t.type === 'replant') claimed.add(`replant:${t.x},${t.y}`);
     }
+
+    // Free storage capacity per type, minus items already in flight to storage.
+    const freeStorage = this._freeStorageByType(minions);
 
     // Gather candidate tasks. Construction is collected separately and pushed
     // first so minions build paths/infrastructure before gathering resources.
@@ -95,7 +95,7 @@ export class TaskSystem {
       if (b.state === 'built' && b.def.workplaces > 0 && b.def.behavior) {
         const free = b.def.workplaces - (active.get(b.id) || 0);
         if (free <= 0) continue;
-        const tasks = this._buildingTasks(b, claimed, sinkTypes).slice(0, free);
+        const tasks = this._buildingTasks(b, claimed, freeStorage).slice(0, free);
         for (const t of tasks) {
           t.buildingId = b.id;
           t.step = 0;
@@ -184,24 +184,41 @@ export class TaskSystem {
     return best;
   }
 
-  /** True when some storage, construction site or craft building wants `type`. */
-  _hasSinkFor(type) {
-    if (this.buildings.sitesNeeding(type).length > 0) return true;
+  /** Free storage capacity per item type, minus items already in flight. */
+  _freeStorageByType(minions) {
+    const free = new Map();
     for (const b of this.buildings.built) {
-      if (b.def.kind === 'storage' && b.inventory.canAdd(type, 1)) return true;
-      if (b.input && b.input.canAdd(type, 1)) {
-        const ids = STATION_RECIPES[b.def.id] || [];
-        for (const id of ids) {
-          const recipe = RECIPES[id];
-          if (recipe && recipe.inputs[type]) return true;
-        }
+      if (b.def.kind !== 'storage') continue;
+      const type = b.inventory.type; // locked or preselected type
+      if (!type) continue;
+      free.set(type, (free.get(type) || 0) + (b.inventory.capacity - b.inventory.total));
+    }
+    for (const m of minions) {
+      if (!m.task) continue;
+      const t = m.task;
+      if (t.type === 'collect' && t.itemType) {
+        free.set(t.itemType, (free.get(t.itemType) || 0) - 1);
+      } else if (t.type === 'deliver' && t.destKind === 'storage' && t.itemType) {
+        free.set(t.itemType, (free.get(t.itemType) || 0) - 1);
       }
     }
-    return false;
+    return free;
+  }
+
+  /** True when `type` can be delivered somewhere (a site or free storage). */
+  _hasDestinationFor(type, freeStorage) {
+    if (this.buildings.sitesNeeding(type).length > 0) return true;
+    return (freeStorage.get(type) || 0) > 0;
+  }
+
+  /** Unique key for a collection source, used to avoid double-assignment. */
+  _claimKey(type, source) {
+    if (source.kind === 'ground') return `collect:ground:${source.x},${source.y}`;
+    return `collect:${source.kind}:${source.buildingId}:${type}`;
   }
 
   /** Build candidate tasks for a finished workplace building. */
-  _buildingTasks(b, claimed, sinkTypes) {
+  _buildingTasks(b, claimed, freeStorage) {
     const r = CONFIG.station.radius;
     const cx = b.x + b.rotatedW / 2;
     const cy = b.y + b.rotatedH / 2;
@@ -209,25 +226,29 @@ export class TaskSystem {
     switch (b.def.behavior) {
       case 'collect': {
         const out = [];
-        for (let y = Math.floor(cy - r); y <= Math.floor(cy + r); y++) {
-          for (let x = Math.floor(cx - r); x <= Math.floor(cx + r); x++) {
-            if (!this.world.inBounds(x, y)) continue;
-            const t = this.world.tile(x, y);
-            if (!t.groundItem || !COLLECTABLE.has(t.groundItem.type) || t.groundItem.qty <= 0) continue;
-            if (!sinkTypes.has(t.groundItem.type)) continue; // no storage/factory/site wants it
-            if (claimed.has(`collect:${x},${y}`)) continue; // already being collected
-            out.push({ type: 'collect', itemType: t.groundItem.type, x, y });
+        for (const s of this._collectSources(cx, cy, r)) {
+          const type = s.type;
+          const key = this._claimKey(type, s.source);
+          if (claimed.has(key)) continue;
+          if (!this._hasDestinationFor(type, freeStorage)) continue;
+          // Reserve a storage slot unless a construction site takes it.
+          if (this.buildings.sitesNeeding(type).length === 0) {
+            freeStorage.set(type, (freeStorage.get(type) || 0) - 1);
           }
+          claimed.add(key);
+          out.push({ type: 'collect', itemType: type, source: s.source, step: 0 });
         }
         return out;
       }
 
       case 'cutTree': {
+        if (!this._hasDestinationFor('wood', freeStorage)) return [];
         const out = [];
         for (let y = Math.floor(cy - r); y <= Math.floor(cy + r); y++) {
           for (let x = Math.floor(cx - r); x <= Math.floor(cx + r); x++) {
             const t = this.world.tile(x, y);
             if (t && t.tree && t.tree.mature && !claimed.has(`cut:${x},${y}`)) {
+              claimed.add(`cut:${x},${y}`);
               out.push({ type: 'cutTree', x, y });
             }
           }
@@ -241,6 +262,7 @@ export class TaskSystem {
           for (let x = Math.floor(cx - r); x <= Math.floor(cx + r); x++) {
             const t = this.world.tile(x, y);
             if (t && t.isEmpty && !claimed.has(`replant:${x},${y}`)) {
+              claimed.add(`replant:${x},${y}`);
               out.push({ type: 'replant', x, y });
             }
           }
@@ -254,7 +276,10 @@ export class TaskSystem {
           for (let x = Math.floor(cx - r); x <= Math.floor(cx + r); x++) {
             const t = this.world.tile(x, y);
             if (t && t.vein && !claimed.has(`drill:${x},${y}`)) {
-              out.push({ type: 'drill', itemType: t.vein === 'stone' ? 'stone' : 'iron' ? 'ironOre' : 'copperOre', x, y });
+              const itemType = t.vein === 'iron' ? 'ironOre' : t.vein === 'copper' ? 'copperOre' : 'stone';
+              if (!this._hasDestinationFor(itemType, freeStorage)) continue;
+              claimed.add(`drill:${x},${y}`);
+              out.push({ type: 'drill', itemType, x, y });
             }
           }
         }
@@ -263,11 +288,11 @@ export class TaskSystem {
 
       case 'craft': {
         const out = [];
-        if (!b.output.isEmpty) {
-          const n = Math.min(b.def.workplaces, b.output.total);
-          for (let i = 0; i < n; i++) out.push({ type: 'depositOutput' });
-          return out;
-        }
+        // if (b.output.isFull) {
+        //   const n = Math.min(b.def.workplaces, b.output.total);
+        //   for (let i = 0; i < n; i++) out.push({ type: 'depositOutput' });
+        //   return out;
+        // }
         const recipe = this._pickCraftRecipe(b);
         if (recipe) {
           out.push({ type: 'craft', recipeId: recipe.id });
@@ -286,11 +311,11 @@ export class TaskSystem {
       case 'transport': {
         // Help any crafting workplace move its output out and fetch its input.
         const out = [];
-        for (const target of this.buildings.built) {
-          if (target.output && !target.output.isEmpty) {
-            out.push({ type: 'depositOutput', targetId: target.id });
-          }
-        }
+        // for (const target of this.buildings.built) {
+        //   if (target.output && !target.output.isEmpty) {
+        //     out.push({ type: 'depositOutput', targetId: target.id });
+        //   }
+        // }
         for (const target of this.buildings.built) {
           if (!target.input || target.input.isFull) continue;
           const fetch = this._pickFetchInput(target);
@@ -316,31 +341,67 @@ export class TaskSystem {
   }
 
   _pickCraftRecipe(b) {
-    if (b.designatedRecipe) {
-      const recipe = RECIPES[b.designatedRecipe];
-      return recipe && this._craftReady(b, recipe) ? recipe : null;
-    }
-    // const ids = STATION_RECIPES[b.def.id] || [];
-    // for (const id of ids) {
-    //   const recipe = RECIPES[id];
-    //   if (recipe && this._craftReady(b, recipe)) return recipe;
-    // }
-    return null;
+    // No automatic recipe selection — only craft what the player chose.
+    if (!b.designatedRecipe) return null;
+    const recipe = RECIPES[b.designatedRecipe];
+    return recipe && this._craftReady(b, recipe) ? recipe : null;
   }
 
   _pickFetchInput(b) {
-    const ids = STATION_RECIPES[b.def.id] || [];
-    const list = b.designatedRecipe ? [b.designatedRecipe] : ids;
-    for (const id of list) {
-      const recipe = RECIPES[id];
-      if (!recipe) continue;
-      for (const inp in recipe.inputs) {
-        if (!b.input.canAdd(inp, 1)) continue;
-        const src = this.buildings.findSourceFor(inp, b.x, b.y);
-        if (src) return { itemType: inp, source: src };
-      }
+    // Only fetch inputs for the player-selected recipe (never auto-pick).
+    if (!b.designatedRecipe) return null;
+    const recipe = RECIPES[b.designatedRecipe];
+    if (!recipe) return null;
+    for (const inp in recipe.inputs) {
+      if (!b.input.canAdd(inp, 1)) continue;
+      const src = this.buildings.findSourceFor(inp, b.x, b.y);
+      if (src) return { itemType: inp, source: src };
     }
     return null;
+  }
+
+  /** Collectable sources within `r` of (cx, cy): ground items + building buffers. */
+  _collectSources(cx, cy, r) {
+    const sources = [];
+    // Ground items.
+    for (let y = Math.floor(cy - r); y <= Math.floor(cy + r); y++) {
+      for (let x = Math.floor(cx - r); x <= Math.floor(cx + r); x++) {
+        const t = this.world.tile(x, y);
+        if (t && t.groundItem && COLLECTABLE.has(t.groundItem.type) && t.groundItem.qty > 0) {
+          sources.push({ type: t.groundItem.type, source: { kind: 'ground', x, y } });
+        }
+      }
+    }
+    // Building output buffers + wrong input items.
+    for (const target of this.buildings.built) {
+      if (!target.output && !target.input) continue;
+      const door = target.doorTile();
+      if (cheb(door.x, door.y, cx, cy) > r) continue;
+      if (target.output) {
+        for (const type in target.output.items) {
+          sources.push({ type, source: { kind: 'output', x: door.x, y: door.y, buildingId: target.id } });
+        }
+      }
+      if (target.input) {
+        for (const type of this._wrongInputItems(target)) {
+          sources.push({ type, source: { kind: 'input', x: door.x, y: door.y, buildingId: target.id } });
+        }
+      }
+    }
+    return sources;
+  }
+
+  /** Input item types that the current recipe doesn't need (cleared out). */
+  _wrongInputItems(b) {
+    // No recipe selected: every buffered input item is stale and should clear.
+    if (!b.designatedRecipe) return Object.keys(b.input.items);
+    const recipe = RECIPES[b.designatedRecipe];
+    const correct = new Set(recipe ? Object.keys(recipe.inputs) : []);
+    const wrong = [];
+    for (const type in b.input.items) {
+      if (!correct.has(type)) wrong.push(type);
+    }
+    return wrong;
   }
 
   // -------------------------------------------------------------- execution
@@ -381,18 +442,23 @@ export class TaskSystem {
   // --- individual task handlers -------------------------------------------
 
   _tCollect(m, t, dt) {
+    const source = t.source || { kind: 'ground', x: t.x, y: t.y };
     if (t.step === 0) {
-      if (this._stepMove(m, t.x, t.y, null, dt)) t.step = 1;
-    } else if (this._stepWork(m, CONFIG.work.collectHours, dt)) {
-      const tile = this.world.tile(t.x, t.y);
-      if (tile && tile.groundItem && tile.groundItem.type === t.itemType && tile.groundItem.qty > 0) {
-        tile.groundItem.qty -= 1;
-        if (tile.groundItem.qty <= 0) tile.groundItem = null;
-        m.carried = { type: t.itemType, qty: 1 };
-        if (!this._planDelivery(m, t.itemType)) this._done(m);
-      } else {
-        this._done(m);
-      }
+      if (this._stepMove(m, source.x, source.y, null, dt)) t.step = 1;
+    } else if (source.kind === 'ground') {
+      if (this._stepWork(m, CONFIG.work.collectHours, dt)) this._collectFinish(m, t, source);
+    } else {
+      // Building output/input: picking up is instant (no digging).
+      this._collectFinish(m, t, source);
+    }
+  }
+
+  _collectFinish(m, t, source) {
+    if (this._takeFromSource(m, t.itemType, source)) {
+      m.carried = { type: t.itemType, qty: 1 };
+      if (!this._planDelivery(m, t.itemType)) this._done(m);
+    } else {
+      this._done(m);
     }
   }
 
@@ -403,15 +469,11 @@ export class TaskSystem {
       const tile = this.world.tile(t.x, t.y);
       if (tile && tile.tree) {
         tile.tree = null;
+        // Drop the wood as a ground item; the collecting station moves it.
         if (tile.groundItem && tile.groundItem.type === 'wood') tile.groundItem.qty += CONFIG.trees.dropsPerCut;
         else tile.groundItem = { type: 'wood', qty: CONFIG.trees.dropsPerCut };
-        tile.groundItem.qty -= 1;
-        if (tile.groundItem.qty <= 0) tile.groundItem = null;
-        m.carried = { type: 'wood', qty: 1 };
-        if (!this._planDelivery(m, 'wood')) this._done(m);
-      } else {
-        this._done(m);
       }
+      this._done(m);
     }
   }
 
@@ -433,15 +495,16 @@ export class TaskSystem {
     } else if (this._stepWork(m, CONFIG.work.cutTreeHours, dt)) {
       const tile = this.world.tile(t.x, t.y);
       if (tile && tile.vein) {
-        if (tile.groundItem && tile.groundItem.type === t.itemType) tile.groundItem.qty += 1;
-        else tile.groundItem = { type: t.itemType, qty: 1 };
-        tile.groundItem.qty -= 1;
-        if (tile.groundItem.qty <= 0) tile.groundItem = null;
-        m.carried = { type: t.itemType, qty: 1 };
-        if (!this._planDelivery(m, t.itemType)) this._done(m);
-      } else {
-        this._done(m);
+        // Drop the ore as a ground item; the collecting station moves it.
+        if (tile.groundItem && tile.groundItem.type === t.itemType) {
+          tile.groundItem.qty += 1;
+        } else if (!tile.groundItem) {
+          tile.groundItem = { type: t.itemType, qty: 1 };
+        } else {
+          this.buildings.placeGroundItem(t.itemType, 1, [{ x: t.x, y: t.y }]);
+        }
       }
+      this._done(m);
     }
   }
 
@@ -763,6 +826,14 @@ export class TaskSystem {
     if (source.kind === 'storage') {
       const b = this.buildings.getBuilding(source.buildingId);
       return !!(b && b.state === 'built' && b.inventory.remove(type, 1) > 0);
+    }
+    if (source.kind === 'output') {
+      const b = this.buildings.getBuilding(source.buildingId);
+      return !!(b && b.state === 'built' && b.output && b.output.remove(type, 1) > 0);
+    }
+    if (source.kind === 'input') {
+      const b = this.buildings.getBuilding(source.buildingId);
+      return !!(b && b.state === 'built' && b.input && b.input.remove(type, 1) > 0);
     }
     return false;
   }
