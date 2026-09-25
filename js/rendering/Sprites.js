@@ -170,7 +170,7 @@ export function drawBuilding(ctx, building, ts) {
       const storedType = building.inventory.type;
       if (storedType && RESOURCE_TYPES[storedType]) {
         const res = RESOURCE_TYPES[storedType];
-        const s = ts * 0.44;
+        const s = ts * 0.64;
         ctx.fillStyle = res.color;
         ctx.beginPath();
         ctx.roundRect(px + w / 2 - s / 2, py + h / 2 - s / 2, s, s, 3);
@@ -189,7 +189,7 @@ export function drawBuilding(ctx, building, ts) {
       const storedType = building.designatedRecipe;
       if (storedType && RESOURCE_TYPES[storedType]) {
         const res = RESOURCE_TYPES[storedType];
-        const s = ts * 0.44;
+        const s = ts * 0.64;
         ctx.fillStyle = res.color;
         ctx.beginPath();
         ctx.roundRect(px + w / 2 - s / 2, py + h / 2 - s / 2, s, s, 3);
