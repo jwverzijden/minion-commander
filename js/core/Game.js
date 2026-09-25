@@ -56,6 +56,7 @@ export class Game {
     this.menuVisible = true;
 
     this.selectedId = null;
+    this.inspected = null; // { kind: 'building'|'vein'|'tree'|'minion', ... }
     this.ghost = null; // { def, x, y, rotation, valid }
     this.drag = null; // { start:{x,y}, current:{x,y} }
     this.dragPreview = []; // array of {x,y} along the drag line
@@ -223,6 +224,7 @@ export class Game {
     }
 
     if (this.world) {
+      this._pruneInspection();
       this.renderer.render(this);
       this.hud.update(this);
       if (this.inspector.visible) this.inspector.refresh(this.minions);
@@ -280,6 +282,29 @@ export class Game {
         this.hud.toast('A minion is lost — build a path to it!', 'warn');
         break;
       }
+    }
+  }
+
+  /**
+   * Drop a selection whose target no longer exists (minion died, vein/tree mined)
+   * or whose inspector was dismissed (close button) — the highlight must not linger.
+   */
+  _pruneInspection() {
+    if (!this.inspected) return;
+    if (!this.inspector.visible) {
+      this.inspected = null;
+      return;
+    }
+
+    const s = this.inspected;
+    if (s.kind === 'minion') {
+      if (s.minion.dead) this._clearInspection();
+    } else if (s.kind === 'vein') {
+      const t = this.world.tile(s.x, s.y);
+      if (!t || !t.vein) this._clearInspection();
+    } else if (s.kind === 'tree') {
+      const t = this.world.tile(s.x, s.y);
+      if (!t || !t.tree) this._clearInspection();
     }
   }
 
@@ -356,15 +381,45 @@ export class Game {
       return;
     }
 
-    // No building selected: inspect the structure under the cursor
-    // (construction sites included, so the player can track progress and
-    // preselect a storage type or crafting recipe).
-    const b = this.buildings.getAt(tile.x, tile.y);
-    if (b) {
-      this.inspector.show(b, this.minions);
+    // No building selected: inspect whatever is under the cursor (a building,
+    // an ore vein, a tree, or a minion).
+    const target = this._pickInspectTarget(tile);
+    if (target) {
+      this.inspected = target;
+      this.inspector.show(target, this.minions);
     } else {
-      this.inspector.hide();
+      this._clearInspection();
     }
+  }
+
+  /**
+   * Choose what to inspect at a tile. Real buildings take priority (so a minion
+   * standing on a station's door still lets you read the station's work bars);
+   * then a minion (moving targets are hardest to click), then veins/trees, then
+   * movement tiles (path/fast path/bridge).
+   */
+  _pickInspectTarget(tile) {
+    const b = this.buildings.getAt(tile.x, tile.y);
+    if (b && !PATH_KINDS.has(b.def.kind)) {
+      return { kind: 'building', building: b };
+    }
+
+    const m = this._minionAt(tile.x, tile.y);
+    if (m) return { kind: 'minion', minion: m };
+
+    const t = this.world.tile(tile.x, tile.y);
+    if (t && t.vein) return { kind: 'vein', x: tile.x, y: tile.y, vein: t.vein };
+    if (t && t.tree) return { kind: 'tree', x: tile.x, y: tile.y };
+
+    if (b) return { kind: 'building', building: b }; // path / fast path / bridge
+    return null;
+  }
+
+  _minionAt(x, y) {
+    for (const m of this.minions) {
+      if (!m.dead && m.tileX() === x && m.tileY() === y) return m;
+    }
+    return null;
   }
 
   _onMouseMove() {
@@ -391,7 +446,7 @@ export class Game {
       return;
     }
     if (this.inspector.visible) {
-      this.inspector.hide();
+      this._clearInspection();
       return;
     }
     this.paused = true;
@@ -423,7 +478,7 @@ export class Game {
 
   selectBuilding(id) {
     if (!this.buildings || this.state !== 'playing' || this.menuVisible) return;
-    this.inspector.hide();
+    this._clearInspection();
     this.selectedId = id;
     this.ghost = id ? { def: buildingDef(id), x: 0, y: 0, rotation: 0, valid: false } : null;
     this.drag = null;
@@ -438,6 +493,11 @@ export class Game {
     this.drag = null;
     this.dragPreview = [];
     this.hud.setSelected(null);
+    this._clearInspection();
+  }
+
+  _clearInspection() {
+    this.inspected = null;
     this.inspector.hide();
   }
 
@@ -479,7 +539,9 @@ export class Game {
     }
 
     const refund = this.buildings.destroy(b);
-    if (this.inspector.building === b) this.inspector.hide();
+    if (this.inspected && this.inspected.kind === 'building' && this.inspected.building === b) {
+      this._clearInspection();
+    }
 
     // Clear minion tasks that reference the demolished building; carried items
     // will be re-routed to a new destination by the task system.

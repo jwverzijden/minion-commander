@@ -361,6 +361,50 @@ export function drawGhost(ctx, world, def, x, y, rotation, valid, ts) {
   ctx.fillRect(dx + ts * 0.3, dy + ts * 0.3, ts * 0.4, ts * 0.4);
 }
 
+/**
+ * Draw a pulsing highlight around the currently inspected target:
+ * a building (whole footprint), an ore vein / tree (single tile), or a minion
+ * (its current tile, so the ring follows it as it moves).
+ */
+export function drawSelection(ctx, selection, ts) {
+  if (!selection) return;
+
+  let rects = [];
+  if (selection.kind === 'building') {
+    const b = selection.building;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const t of b.footprintTiles()) {
+      minX = Math.min(minX, t.x);
+      minY = Math.min(minY, t.y);
+      maxX = Math.max(maxX, t.x);
+      maxY = Math.max(maxY, t.y);
+    }
+    rects = [{ x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 }];
+  } else if (selection.kind === 'minion') {
+    const m = selection.minion;
+    if (m.dead) return;
+    rects = [{ x: Math.floor(m.x), y: Math.floor(m.y), w: 1, h: 1 }];
+  } else if (selection.kind === 'vein' || selection.kind === 'tree') {
+    rects = [{ x: selection.x, y: selection.y, w: 1, h: 1 }];
+  }
+
+  const pulse = 0.55 + 0.45 * Math.sin(performance.now() / 200);
+  for (const r of rects) {
+    const px = r.x * ts;
+    const py = r.y * ts;
+    const pw = r.w * ts;
+    const ph = r.h * ts;
+    ctx.fillStyle = `rgba(255, 209, 102, ${0.1 + 0.06 * pulse})`;
+    ctx.fillRect(px + 1, py + 1, pw - 2, ph - 2);
+    ctx.strokeStyle = `rgba(255, 209, 102, ${pulse})`;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(px + 1.5, py + 1.5, pw - 3, ph - 3);
+  }
+}
+
 /** Draw a building icon for the hotbar. */
 export function drawIcon(ctx, defId, size) {
   const def = BUILDING_DEFS[defId];

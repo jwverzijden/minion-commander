@@ -10,9 +10,20 @@
 import { RESOURCE_TYPES, RESOURCE_IDS, RECIPES, STATION_RECIPES } from '../data/resources.js';
 import { CONFIG } from '../core/config.js';
 
+/** Tile vein type -> resource id (stone/iron/copper map to their mined item). */
+const VEIN_RESOURCE = { stone: 'stone', iron: 'ironOre', copper: 'copperOre' };
+
+const MINION_STATE_LABELS = {
+  idle: 'Idle',
+  moving: 'Moving',
+  working: 'Working',
+  recharging: 'Recharging',
+};
+
 export class Inspector {
   constructor(el) {
     this.el = el;
+    this.target = null; // { kind: 'building'|'vein'|'tree'|'minion', ... }
     this.building = null;
     this.minions = [];
     this._refs = {};
@@ -24,11 +35,13 @@ export class Inspector {
     return !this.el.classList.contains('hidden');
   }
 
-  show(building, minions = []) {
-    this.building = building;
+  show(target, minions = []) {
+    this.target = target;
+    this.building = target && target.kind === 'building' ? target.building : null;
     this.minions = minions || [];
-    this._state = building.state;
-    this._storageType = building.inventory ? building.inventory.type : null;
+    this._state = this.building ? this.building.state : null;
+    this._storageType =
+      this.building && this.building.inventory ? this.building.inventory.type : null;
     this._render();
     this.el.classList.remove('hidden');
   }
@@ -36,6 +49,7 @@ export class Inspector {
   hide() {
     this.el.classList.add('hidden');
     this.el.innerHTML = '';
+    this.target = null;
     this.building = null;
     this.minions = [];
     this._refs = {};
@@ -45,9 +59,30 @@ export class Inspector {
 
   /** Live-update dynamic values without rebuilding the whole panel. */
   refresh(minions) {
-    const b = this.building;
-    if (!b) return;
+    const target = this.target;
+    if (!target) return;
     if (minions) this.minions = minions;
+
+    // Non-building targets have lightweight, in-place updates.
+    if (target.kind !== 'building') {
+      if (target.kind === 'minion') {
+        if (target.minion.dead) {
+          this.hide();
+          return;
+        }
+        if (this._refs.age) this._refs.age.textContent = formatAge(target.minion.age);
+        if (this._refs.state) {
+          this._refs.state.textContent =
+            MINION_STATE_LABELS[target.minion.state] || target.minion.state;
+        }
+        if (this._refs.batteryFill) {
+          this._applyBattery(this._refs.batteryFill, this._refs.battery, target.minion.battery);
+        }
+      }
+      return;
+    }
+
+    const b = this.building;
 
     // Re-render on structural changes (state transition, storage type change).
     if (b.state !== this._state) {
@@ -87,7 +122,7 @@ export class Inspector {
   }
 
   _render() {
-    const b = this.building;
+    const target = this.target;
     this.el.innerHTML = '';
     this._refs = {};
 
@@ -98,6 +133,20 @@ export class Inspector {
     close.addEventListener('click', () => this.hide());
     this.el.appendChild(close);
 
+    if (!target) return;
+
+    if (target.kind === 'building') {
+      this._renderBuilding(target.building);
+    } else if (target.kind === 'vein') {
+      this._renderResource(VEIN_RESOURCE[target.vein] || target.vein, 'Vein');
+    } else if (target.kind === 'tree') {
+      this._renderResource('wood', 'Tree');
+    } else if (target.kind === 'minion') {
+      this._renderMinion(target.minion);
+    }
+  }
+
+  _renderBuilding(b) {
     const h2 = document.createElement('h2');
     h2.textContent = b.def.name;
     this.el.appendChild(h2);
@@ -124,6 +173,79 @@ export class Inspector {
     ) {
       this._renderWork(b);
     }
+  }
+
+  _renderResource(resId, subtitle) {
+    const res = RESOURCE_TYPES[resId];
+    const h2 = document.createElement('h2');
+    h2.textContent = res ? res.name : resId;
+    this.el.appendChild(h2);
+
+    const desc = document.createElement('p');
+    desc.className = 'desc';
+    desc.textContent = subtitle;
+    this.el.appendChild(desc);
+  }
+
+  _renderMinion(m) {
+    const h2 = document.createElement('h2');
+    h2.textContent = 'Minion';
+    this.el.appendChild(h2);
+
+    const desc = document.createElement('p');
+    desc.className = 'desc';
+    desc.textContent = MINION_STATE_LABELS[m.state] || m.state;
+    this.el.appendChild(desc);
+    this._refs.state = desc;
+
+    const current = document.createElement('div');
+    current.className = 'current';
+    const meta = document.createElement('span');
+    meta.className = 'meta';
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = 'Age';
+    meta.appendChild(name);
+    meta.appendChild(document.createTextNode(' '));
+    const age = document.createElement('span');
+    age.className = 'qty';
+    age.textContent = formatAge(m.age);
+    meta.appendChild(age);
+    current.appendChild(meta);
+    this.el.appendChild(current);
+    this._refs.age = age;
+
+    // Battery (value + progress bar).
+    const batRow = document.createElement('div');
+    batRow.className = 'progress-row';
+    const batLabel = document.createElement('span');
+    batLabel.className = 'progress-label';
+    batLabel.textContent = 'Battery';
+    batRow.appendChild(batLabel);
+    const batVal = document.createElement('span');
+    batVal.className = 'progress-pct';
+    batRow.appendChild(batVal);
+    this.el.appendChild(batRow);
+    this._refs.battery = batVal;
+
+    const batTrack = document.createElement('div');
+    batTrack.className = 'progress-track';
+    const batFill = document.createElement('div');
+    batFill.className = 'progress-fill';
+    batTrack.appendChild(batFill);
+    this.el.appendChild(batTrack);
+    this._refs.batteryFill = batFill;
+
+    this._applyBattery(batFill, batVal, m.battery);
+  }
+
+  /** Set a battery bar's width, colour and label text from an hour value. */
+  _applyBattery(fill, val, batteryHours) {
+    const max = CONFIG.minion.maxBatteryHours;
+    const frac = Math.max(0, Math.min(1, batteryHours / max));
+    fill.style.width = `${Math.round(frac * 100)}%`;
+    fill.style.background = frac > 0.3 ? '#6bdf8a' : '#ff6b6b';
+    val.textContent = formatBattery(batteryHours);
   }
 
   _renderStatus(b) {
@@ -504,4 +626,15 @@ export class Inspector {
     btn.addEventListener('click', onClick);
     return btn;
   }
+}
+
+function formatAge(ageHours) {
+  const days = ageHours / CONFIG.time.hoursPerDay;
+  return `${days.toFixed(1)} / ${CONFIG.minion.lifespanDays} days`;
+}
+
+function formatBattery(batteryHours) {
+  const max = CONFIG.minion.maxBatteryHours;
+  const pct = Math.round((batteryHours / max) * 100);
+  return `${batteryHours.toFixed(1)} / ${max} h (${pct}%)`;
 }
